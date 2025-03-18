@@ -6,6 +6,13 @@ Action is only warranted when it affords control over the environment. The contr
 Author
 Levi Solomyak (levi.solomyak [at] huji.ac.il)
 
+## Experiment
+
+This code analyzes data from an experiment that can be found at:
+**https://run.pavlovia.org/eldarlabccl/control_1_replication**
+
+Feel free to give it a go. 
+
 
 
 ## Repository Structure
