@@ -1,0 +1,940 @@
+%% Computational Modeling Toolbox
+% A comprehensive toolbox for initializing, fitting, and analyzing computational models
+% of learning and decision-making behavior.
+%
+% This toolbox consolidates various helper functions for model specification,
+% data formatting, parameter extraction, and visualization. It provides a unified
+% framework for working with computational models of behavior, from data preparation
+% to model comparison and visualization of results.
+%
+% Features:
+% - Data preparation and formatting
+% - Model initialization with customizable priors
+% - Parameter extraction and visualization
+% - Correlation analysis of fitted parameters
+% - Model comparison utilities
+% - Exporting model predictions to CSV for further analysis
+%
+% Author: Solomyak et al
+% Date: March 18, 2024
+%
+% This script demonstrates how to use this toolbox for model fitting and analysis
+%
+% % 1. Load your raw data
+% rawData = readtable('your_raw_data.csv');
+%
+% % 2. Prepare data for modeling
+% data = prepare_data(rawData);
+%
+% % 3. Initialize models with priors
+% models = initialize_models();
+%
+% % 4. Fit models to data
+% for model_idx = 1:length(models)
+%     fprintf('Fitting model %d: %s\n', model_idx, models{model_idx}.name);
+%     models = fit_model(models, data, model_idx);
+% end
+
+%% Additional Helper Functions
+function data = format_data(dd, i)
+% FORMAT_DATA Formats a single participant's data into the required structure
+%
+% Inputs:
+%   dd - Table containing a single participant's data
+%   i - Index for the output structure
+%
+% Outputs:
+%   data - Structured array for a single participant
+
+try
+    data(i).T = size(dd, 1);
+    data(i).num_tries = dd.num_tries;
+    data(i).Reward = dd.Reward;
+    data(i).ss_transition = dd.ss_transition;
+    data(i).trials = dd.trials;
+    
+    % Convert to table structure
+    data(i) = struct2table(data);
+catch
+    warning('Error formatting data for participant %d', i);
+end
+end
+
+function compare_models(models)
+% COMPARE_MODELS Compares multiple models using BIC and evidence
+%
+% This function creates a comparison table of model fits and visualizes the results
+%
+% Inputs:
+%   models - Cell array of fitted model structures
+
+% Create a table for comparison
+model_names = cell(length(models), 1);
+model_bic = nan(length(models), 1);
+model_evidence = nan(length(models), 1);
+num_params = nan(length(models), 1);
+
+% Extract relevant information
+for i = 1:length(models)
+    model_names{i} = models{i}.name;
+    
+    try
+        model_bic(i) = models{i}.bic;
+    catch
+        warning('BIC not available for model %d: %s', i, models{i}.name);
+    end
+    
+    try
+        model_evidence(i) = mean([models{i}.fit.evidence]);
+    catch
+        warning('Evidence not available for model %d: %s', i, models{i}.name);
+    end
+    
+    try
+        % Count number of parameters by examining the first fit
+        num_params(i) = length(fieldnames(models{i}.fit.P(1)));
+    catch
+        warning('Could not determine number of parameters for model %d: %s', i, models{i}.name);
+    end
+end
+
+% Create comparison table
+comparison = table(model_names, num_params, model_evidence, model_bic, ...
+    'VariableNames', {'Model', 'NumParameters', 'Evidence', 'BIC'});
+
+% Sort by BIC (lower is better)
+[~, idx] = sort(model_bic);
+comparison_sorted = comparison(idx, :);
+
+% Display the table
+disp('Model Comparison (sorted by BIC, lower is better):');
+disp(comparison_sorted);
+
+% Visualize BIC comparison
+figure('Name', 'Model Comparison');
+
+% BIC comparison
+subplot(2, 1, 1);
+bar(model_bic(idx));
+set(gca, 'XTick', 1:length(models));
+set(gca, 'XTickLabel', model_names(idx));
+xtickangle(45);
+ylabel('BIC (lower is better)');
+title('Model Comparison by BIC');
+grid on;
+
+% Evidence comparison
+subplot(2, 1, 2);
+bar(model_evidence(idx));
+set(gca, 'XTick', 1:length(models));
+set(gca, 'XTickLabel', model_names(idx));
+xtickangle(45);
+ylabel('Log Evidence (higher is better)');
+title('Model Comparison by Log Evidence');
+grid on;
+
+% Save the figure
+saveas(gcf, 'model_comparison.png');
+
+% Save the comparison table
+writetable(comparison, 'model_comparison.csv');
+end
+
+function models = fit_model(models, data, model_idx)
+% FIT_MODEL Fits a specified model to data
+%
+% This is a skeleton function that should be implemented with your 
+% specific model fitting code. It's included here for completeness.
+%
+% Inputs:
+%   models - Cell array of model structures
+%   data - Structured array of participant data
+%   model_idx - Index of the model to fit
+%
+% Outputs:
+%   models - Updated models with fitted parameters
+
+fprintf('Fitting model: %s\n', models{model_idx}.name);
+
+% This is where you would implement your model fitting code
+% For example:
+% [models{model_idx}.fit, models{model_idx}.outputs] = fit_function(models{model_idx}, data);
+
+% For now, we'll just output a placeholder message
+warning('Model fitting not implemented in this script.');
+fprintf('To implement model fitting, replace the fit_model function with your actual fitting code.\n');
+end
+%
+% % 5. Compare models using BIC
+% compare_models(models);
+%
+% % 6. Extract fitted parameters from best model
+% best_model_idx = 5; % Replace with the index of your best model
+% [param_table, all_params] = extract_fits(models, best_model_idx);
+%
+% % 7. Visualize parameter correlations
+% plot_correlation_pairs(models, best_model_idx);
+%
+% % 8. Output model predictions to CSV for further analysis
+% output_to_csv(models, best_model_idx, data);
+
+%% Data Preparation Function
+function data = prepare_data(dd, sim)
+% PREPARE_DATA Processes raw data table into format required for modeling
+%
+% Inputs:
+%   dd - Table containing raw experimental data
+%   sim - Boolean flag indicating if this is for simulation (0 or 1)
+%
+% Outputs:
+%   data - Structured array ready for model fitting
+
+% Initialize sim parameter if not provided
+if nargin < 2
+    sim = 0;
+end
+
+%% Output Function
+function output_to_csv(model_fits, num_model, data)
+% OUTPUT_TO_CSV Exports model predictions and parameter estimates to a CSV file
+%
+% This function takes model predictions for each trial and participant, 
+% combines them with the observed data, and exports to a CSV file.
+%
+% Inputs:
+%   model_fits - Cell array of fitted model structures
+%   num_model - Index of model to export
+%   data - Structured array of participant data
+
+output = model_fits{num_model}.outputs;
+try 
+    [num_participants, num_trials] = size(output.control);
+catch 
+    [num_participants, num_trials] = size(output.elasticity);
+end 
+
+% Create the initial long-format table
+func_name = func2str(model_fits{num_model}.lik_func);
+participant_id = [data.participant_id]';
+participant_id = participant_id(1:num_participants);
+participant_id_long = repelem(participant_id, num_trials);
+surprise_long = reshape(output.surprise', [], 1);
+
+% Handle different output structures from different models
+try 
+    cumulative_surprise_long = reshape(output.cumulative_surprise', [], 1);
+catch
+    try 
+        fprintf('Using cumulative_outcome instead of cumulative_surprise\n');
+        cumulative_surprise_long = reshape(output.cumulative_outcome', [], 1);
+    catch 
+        warning('No cumulative surprise or outcome found in model output');
+        cumulative_surprise_long = NaN(size(surprise_long));
+    end 
+end 
+
+% Create trial numbers
+trial_num = repmat((0:(num_trials-1))', num_participants, 1);
+
+% Extract model predictions
+elasticity_long = reshape(output.elasticity', [], 1);
+inelastic_long = reshape(output.inelastic', [], 1);
+control_long = reshape(output.control', [], 1);
+
+% Extract additional model outputs if available
+try
+    expectation_long = reshape(output.expectation', [], 1);
+    has_expectation = true;
+catch 
+    has_expectation = false;
+end 
+
+% Extract emotional predictions
+predicted_content = reshape(output.predicted_content', [], 1);
+predicted_excited = reshape(output.predicted_excited', [], 1);
+
+% Create the long-format data table with available variables
+variables = {'participant_id_long', 'trial_num', 'surprise_long', 'control_long', ...
+    'cumulative_surprise_long', 'elasticity_long', 'inelastic_long', 'predicted_content', ...
+    'predicted_excited'};
+variable_names = {'participant_id', 'trial', 'surprise', 'control', ...
+    'cumulative_surprise', 'elasticity', 'inelastic', 'predicted_content', ...
+    'predicted_excited'};
+
+% Add expectation if available
+if has_expectation
+    variables{end+1} = 'expectation_long';
+    variable_names{end+1} = 'expectation';
+end
+
+% Build the table dynamically based on available variables
+eval_str = 'long_data = table(';
+for i = 1:length(variables)
+    if i > 1
+        eval_str = [eval_str, ', '];
+    end
+    eval_str = [eval_str, variables{i}];
+end
+eval_str = [eval_str, ', ''VariableNames'', {'];
+for i = 1:length(variable_names)
+    if i > 1
+        eval_str = [eval_str, ', '];
+    end
+    eval_str = [eval_str, '''', variable_names{i}, ''''];
+end
+eval_str = [eval_str, '});'];
+
+% Execute the dynamic table creation
+eval(eval_str);
+
+% Add observed data to the table
+content = NaN(num_participants, num_trials);
+excited = NaN(num_participants, num_trials);
+total_actions = NaN(num_participants, num_trials);
+Reward = NaN(num_participants, num_trials);
+
+% Extract observed data from each participant
+for i = 1:num_participants
+    try
+        content(i,:) = data(i).content;
+    catch
+        % Content data not available
+    end
+    
+    try
+        excited(i,:) = data(i).excited;
+    catch
+        % Excited data not available
+    end
+    
+    try 
+        total_actions(i,:) = data(i).num_tries;
+    catch
+        % Number of tries data not available
+    end
+    
+    try
+        Reward(i,:) = data(i).Reward;
+    catch
+        % Reward data not available
+    end
+end
+
+% Add observed data to the long-format table
+long_data.content = reshape(content', [], 1);
+long_data.excited = reshape(excited', [], 1);
+long_data.Reward = reshape(Reward', [], 1);
+long_data.total_actions = reshape(total_actions', [], 1);
+
+% Extract fitted parameters
+fits = extract_fits(model_fits, num_model);
+
+% Calculate number of trials in long_data
+num_rows_long_data = height(long_data);
+
+% Repeat fitted parameters for each trial
+trials_per_participant = num_rows_long_data / height(fits);
+repeated_fits = fits(repelem(1:height(fits), trials_per_participant), :);
+
+% Add fitted parameters to the long-format table
+long_data = [long_data, repeated_fits];
+
+% Generate filename based on the model name
+filename = sprintf('%s_outputs.csv', func_name);
+
+% Write table to CSV
+writetable(long_data, filename);
+fprintf('Successfully saved model outputs to %s\n', filename);
+end
+
+%% Parameter Extraction Functions
+function [table_v, params_table] = extract_fits(model, i)
+% EXTRACT_FITS Extracts fitted parameters from a model structure
+%
+% Inputs:
+%   model - Cell array of model structures
+%   i - Index of the model to extract parameters from
+%
+% Outputs:
+%   table_v - Table containing parameter values
+%   params_table - Table containing parameter details
+
+fits = [model{i}.fit.P];
+evidence = [model{i}.fit.evidence]';
+
+% Get field names of parameters in fits
+param_names = fieldnames(fits);
+
+% Initialize a struct to store extracted parameters
+extracted_params = struct();
+ext = struct();
+
+% Extract parameters from fits
+for k = 1:numel(param_names)
+    param_name = param_names{k};
+    extracted_params.(param_name) = [fits.(param_name)];
+    ext.(param_name) = [extracted_params.(param_name).val];
+end
+
+% Create a table from the extracted parameters
+params_table = struct2table(ext);
+table_v = extract_table(ext);
+table_v.evidence = evidence;
+end
+
+function myTable = extract_table(myStruct)
+% EXTRACT_TABLE Converts a structure to a table, handling fields of different sizes
+%
+% Inputs:
+%   myStruct - Structure with fields to convert to table columns
+%
+% Outputs:
+%   myTable - Table with columns from structure fields
+
+fieldNames = fieldnames(myStruct);
+numFields = numel(fieldNames);
+
+% Determine the maximum vector length
+maxVectorLength = max(cellfun(@numel, struct2cell(myStruct)));
+
+% Create a cell array to store the vectors
+vectorCell = cell(numFields, maxVectorLength);
+
+% Extract and transpose the vectors from each field
+for i = 1:numFields
+    currentVector = myStruct.(fieldNames{i});
+    vectorCell(i, 1:numel(currentVector)) = num2cell(currentVector);
+end
+
+% Create a table from the transposed cell array
+myTable = cell2table(vectorCell', 'VariableNames', fieldNames);
+end
+
+%% Visualization Functions
+function plot_correlation_pairs(model, i)
+% PLOT_CORRELATION_PAIRS Visualizes correlations between model parameters
+%
+% This function creates:
+%   1. A matrix of scatterplots showing correlations between all pairs of parameters
+%   2. A correlation matrix heatmap with correlation values
+%
+% Inputs:
+%   model - Cell array of model structures
+%   i - Index of the model to visualize
+
+% Extract parameters from model{i}.fit.P
+fits = [model{i}.fit.P];
+
+% Get field names of parameters in fits
+param_names = fieldnames(fits);
+
+% Initialize a struct to store extracted parameters
+extracted_params = struct();
+ext = struct();
+
+% Extract parameters from fits
+for k = 1:numel(param_names)
+    param_name = param_names{k};
+    extracted_params.(param_name) = [fits.(param_name)];
+    ext.(param_name) = [extracted_params.(param_name).val];
+end
+
+% Create a table from the extracted parameters
+params_table = struct2table(ext);
+table_v = extract_table(ext);
+
+% Plot scatterplot pairs
+num_params = numel(param_names);
+figure('Name', sprintf('Model %d Parameter Correlations: %s', i, model{i}.name));
+
+for row = 1:num_params
+    for col = 1:num_params
+        subplot(num_params, num_params, (row-1)*num_params + col);
+        
+        if row == col
+            % Plot histogram on diagonal
+            data = params_table.(param_names{row});
+            if isnumeric(data)
+                histogram(data, 'FaceColor', [0.4 0.4 0.8], 'EdgeColor', 'none');
+            else
+                % Handle non-numeric data (e.g., categorical)
+                histogram(categorical(data), 'FaceColor', [0.4 0.4 0.8], 'EdgeColor', 'none');
+            end
+            
+            xlabel(param_names{row}, 'Interpreter', 'none');
+            ylabel('Frequency', 'Interpreter', 'none');
+            
+        else
+            % Plot scatter on off-diagonal
+            scatter(params_table.(param_names{col}), params_table.(param_names{row}), 25, [0.3 0.6 0.8], 'filled');
+            xlabel(param_names{col}, 'Interpreter', 'none');
+            ylabel(param_names{row}, 'Interpreter', 'none');
+            
+            % Add reference line y = x
+            hold on;
+            xlim_vals = xlim;
+            ylim_vals = ylim;
+            min_val = min([xlim_vals(1), ylim_vals(1)]);
+            max_val = max([xlim_vals(2), ylim_vals(2)]);
+            plot([min_val, max_val], [min_val, max_val], 'k--');
+            hold off;
+            
+            % Add correlation coefficient
+            data1 = params_table.(param_names{col});
+            data2 = params_table.(param_names{row});
+            valid_indices = ~isnan(data1) & ~isnan(data2);
+            if sum(valid_indices) > 1
+                r = corrcoef(data1(valid_indices), data2(valid_indices));
+                r = r(1,2);
+                text(0.05, 0.95, sprintf('r = %.2f', r), ...
+                    'Units', 'normalized', 'FontSize', 8, ...
+                    'HorizontalAlignment', 'left', 'VerticalAlignment', 'top');
+            end
+        end
+        
+        % Make axis labels smaller to prevent overlap
+        set(gca, 'FontSize', 8);
+    end
+end
+
+% Adjust subplot spacing
+set(gcf, 'PaperUnits', 'inches');
+x_width = 16.25;
+y_width = 16.125;
+set(gcf, 'PaperPosition', [0 0 x_width y_width]);
+
+% Save scatterplot pairs as a PNG file
+saveas(gcf, sprintf('model%d_scatterplot_pairs%s', i, '.png'));
+
+% Plot correlation matrix
+numericData = table2array(table_v);
+
+% Calculate the correlation matrix
+corr_matrix = corrcoef(numericData);
+figure('Name', sprintf('Model %d Correlation Matrix: %s', i, model{i}.name));
+imagesc(corr_matrix);
+colorbar;
+colormap(jet);
+xticks(1:num_params);
+yticks(1:num_params);
+xticklabels(param_names);
+yticklabels(param_names);
+title('Parameter Correlation Matrix');
+
+% Add the correlation values as text
+textStrings = arrayfun(@(x) sprintf('%.2f', x), corr_matrix, 'UniformOutput', false);
+[x, y] = meshgrid(1:num_params);
+text(x(:), y(:), textStrings(:), 'HorizontalAlignment', 'center', 'FontSize', 8);
+
+% Determine text color based on background (white on dark, black on light)
+midValue = mean(get(gca, 'CLim'));
+textColors = repmat(abs(corr_matrix(:)) < 0.5, 1, 3);
+hStrings = text(x(:), y(:), textStrings(:), 'HorizontalAlignment', 'center', 'FontSize', 8);
+set(hStrings, {'Color'}, num2cell(textColors, 2));
+
+% Rotate x-axis labels for readability
+xtickangle(45);
+
+% Adjust figure size
+set(gcf, 'PaperUnits', 'inches');
+x_width = 10;
+y_width = 8;
+set(gcf, 'PaperPosition', [0 0 x_width y_width]);
+
+% Save correlation matrix as a PNG file
+saveas(gcf, sprintf('model%d_correlation_matrix%s', i, '.png'));
+end
+
+%% Model Initialization Function
+function model = initialize_models()
+% INITIALIZE_MODELS Creates and configures computational models with appropriate priors
+% 
+% This function initializes a cell array of model structures, each with:
+%   - Likelihood function handle
+%   - Model name
+%   - Parameter specifications with prior distributions
+%   - Empty slots for BIC and fitted parameters
+%
+% Returns:
+%   model - Cell array of model structures ready for fitting
+
+% Initialize associative learning model
+model{1}.lik_func = @associtie;
+model{1}.name = 'associative';
+
+model{1}.spec.beta.type = 'beta';
+model{1}.spec.beta.val = [1 1];
+
+model{1}.spec.pers.type = 'norm';
+model{1}.spec.pers.val = [0 1];
+
+model{1}.spec.lr.type = 'beta';
+model{1}.spec.lr.val = [1 1];
+
+model{1}.spec.prior1.type = 'beta';
+model{1}.spec.prior1.val = [1 1];
+
+model{1}.spec.prior2.type = 'beta';
+model{1}.spec.prior2.val = [1 1];
+
+model{1}.spec.prior3.type = 'beta';
+model{1}.spec.prior3.val = [1 1];
+
+model{1}.bic = nan;
+
+% Initialize Dirichlet model
+model{2}.lik_func = @dirichlet_model;
+model{2}.name = 'dirichlet';
+
+model{2}.spec.beta.type = 'beta';
+model{2}.spec.beta.val = [1 1];
+
+model{2}.spec.pers.type = 'norm';
+model{2}.spec.pers.val = [0 1];
+
+model{2}.spec.alpha1.type = 'norm';
+model{2}.spec.alpha1.val = [0 1];
+
+model{2}.spec.alpha2.type = 'norm';
+model{2}.spec.alpha2.val = [0 1];
+
+model{2}.spec.alpha3.type = 'norm';
+model{2}.spec.alpha3.val = [0 1];
+
+model{2}.spec.concentration_control.type = 'gamma';
+model{2}.spec.concentration_control.val = [1 1];
+
+model{2}.spec.bias_control.type = 'beta';
+model{2}.spec.bias_control.val = [1 1];
+
+model{2}.spec.bias_elastic.type = 'beta';
+model{2}.spec.bias_elastic.val = [1 1];
+
+model{2}.bic = nan;
+
+% Initialize non-controllability model (nc_3s_3a_3e)
+model{3}.lik_func = @nc_3s_3a_3e;
+model{3}.name = 'nc_3s_3a_3e';
+
+model{3}.spec.beta.type = 'beta';
+model{3}.spec.beta.val = [1 1];
+
+model{3}.spec.pers.type = 'norm';
+model{3}.spec.pers.val = [0 1];
+
+model{3}.spec.epsilon1.type = 'lognorm';
+model{3}.spec.epsilon1.val = [0 1];
+
+model{3}.spec.epsilon2.type = 'gamma';
+model{3}.spec.epsilon2.val = [2 1];
+
+model{3}.spec.epsilon3.type = 'gamma';
+model{3}.spec.epsilon3.val = [2 1];
+
+model{3}.spec.alpha1.type = 'norm';
+model{3}.spec.alpha1.val = [0 1];
+
+model{3}.spec.alpha2.type = 'norm';
+model{3}.spec.alpha2.val = [0 1];
+
+model{3}.spec.alpha3.type = 'norm';
+model{3}.spec.alpha3.val = [0 1];
+
+model{3}.spec.scale1.type = 'beta';
+model{3}.spec.scale1.val = [1 1];
+
+model{3}.spec.scale2.type = 'beta';
+model{3}.spec.scale2.val = [1 1];
+
+model{3}.spec.scale3.type = 'beta';
+model{3}.spec.scale3.val = [1 1];
+
+model{3}.bic = nan;
+
+% Initialize elastic controllability model (c_2s_3a_2e)
+model{4}.lik_func = @c_2s_3a_2e;
+model{4}.name = 'c_2s_3a_2e';
+
+model{4}.spec.beta.type = 'beta';
+model{4}.spec.beta.val = [1 1];
+
+model{4}.spec.pers.type = 'norm';
+model{4}.spec.pers.val = [0 1];
+
+model{4}.spec.epsilon1.type = 'lognorm';
+model{4}.spec.epsilon1.val = [0 1];
+
+model{4}.spec.epsilon2.type = 'lognorm';
+model{4}.spec.epsilon2.val = [0 1];
+
+model{4}.spec.alpha1.type = 'norm';
+model{4}.spec.alpha1.val = [0 1];
+
+model{4}.spec.alpha2.type = 'norm';
+model{4}.spec.alpha2.val = [0 1];
+
+model{4}.spec.alpha3.type = 'norm';
+model{4}.spec.alpha3.val = [0 1];
+
+model{4}.spec.scale1.type = 'beta';
+model{4}.spec.scale1.val = [1 1];
+
+model{4}.spec.scale3.type = 'beta';
+model{4}.spec.scale3.val = [1 1];
+
+model{4}.bic = nan;
+
+% Initialize elastic controllability with learning model (c_2s_3a_2e_3learn)
+model{5}.lik_func = @c_2s_3a_2e_3learn;
+model{5}.name = 'c_2s_3a_2e_3learn';
+
+model{5}.spec.beta.type = 'beta';
+model{5}.spec.beta.val = [1 1];
+
+model{5}.spec.pers.type = 'norm';
+model{5}.spec.pers.val = [0 1];
+
+model{5}.spec.epsilon1.type = 'lognorm';
+model{5}.spec.epsilon1.val = [0 1];
+
+model{5}.spec.epsilon2.type = 'lognorm';
+model{5}.spec.epsilon2.val = [0 1];
+
+model{5}.spec.alpha1.type = 'norm';
+model{5}.spec.alpha1.val = [0 1];
+
+model{5}.spec.alpha2.type = 'norm';
+model{5}.spec.alpha2.val = [0 1];
+
+model{5}.spec.alpha3.type = 'norm';
+model{5}.spec.alpha3.val = [0 1];
+
+model{5}.spec.scale1.type = 'beta';
+model{5}.spec.scale1.val = [1 1];
+
+model{5}.spec.scale3.type = 'beta';
+model{5}.spec.scale3.val = [1 1];
+
+model{5}.spec.kaps.type = 'beta';
+model{5}.spec.kaps.val = [1 1];
+
+model{5}.bic = nan;
+
+% Initialize asymmetric model (c_2s_3a_2e_3learn_pos_assym)
+model{6}.lik_func = @c_2s_3a_2e_3learn_pos_assym;
+model{6}.name = 'c_2s_3a_2e_3learn_pos_assym';
+
+model{6}.spec.beta.type = 'beta';
+model{6}.spec.beta.val = [1 1];
+
+model{6}.spec.pers.type = 'norm';
+model{6}.spec.pers.val = [0 1];
+
+model{6}.spec.epsilon1.type = 'lognorm';
+model{6}.spec.epsilon1.val = [0 1];
+
+model{6}.spec.epsilon2.type = 'lognorm';
+model{6}.spec.epsilon2.val = [0 1];
+
+model{6}.spec.alpha1.type = 'norm';
+model{6}.spec.alpha1.val = [0 1];
+
+model{6}.spec.alpha2.type = 'norm';
+model{6}.spec.alpha2.val = [0 1];
+
+model{6}.spec.alpha3.type = 'norm';
+model{6}.spec.alpha3.val = [0 1];
+
+model{6}.spec.scale1.type = 'beta';
+model{6}.spec.scale1.val = [1 1];
+
+model{6}.spec.scale3.type = 'beta';
+model{6}.spec.scale3.val = [1 1];
+
+model{6}.spec.kaps.type = 'beta';
+model{6}.spec.kaps.val = [1 1];
+
+model{6}.spec.pos.type = 'lognorm';
+model{6}.spec.pos.val = [0 1];
+
+model{6}.spec.ss_learn.type = 'lognorm';
+model{6}.spec.ss_learn.val = [0 1];
+
+model{6}.bic = nan;
+
+% Initialize null model
+model{7}.lik_func = @n_model;
+model{7}.name = 'null model';
+
+model{7}.spec.pers.type = 'norm';
+model{7}.spec.pers.val = [0 1];
+
+model{7}.spec.alpha1.type = 'norm';
+model{7}.spec.alpha1.val = [0 1];
+
+model{7}.spec.alpha2.type = 'norm';
+model{7}.spec.alpha2.val = [0 1];
+
+model{7}.spec.alpha3.type = 'norm';
+model{7}.spec.alpha3.val = [0 1];
+
+model{7}.bic = nan;
+end
+
+group = 1;
+if group == 1
+    for i = 1:length(unique(dd.participant_id))
+        % Sort data by participant, block, and trials
+        dd = sortrows(dd, {'participant_id', 'block', 'trials'});
+        
+        % Extract data for current participant
+        current_list = unique(dd.participant_id);
+        part_to_keep = current_list(i);
+        disp(['Processing participant: ', num2str(part_to_keep)]);
+        dats = dd(dd.participant_id == part_to_keep, :);
+        
+        if height(dats) > 100
+            % Set basic data fields
+            data(i).T = size(dats, 1);
+            
+            % Check for shifted trials
+            try
+                if dats.trials(1) == 29
+                    disp('Warning: Trials appear to be shifted by one');
+                    disp(['Participant: ', num2str(dats.participant(1))]);
+                end
+            catch
+                warning('Issue with trial checking for participant %s', num2str(part_to_keep));
+            end
+            
+            % Get number of tries
+            try
+                data(i).num_tries = dats.num_tries;
+            catch
+                data(i).num_tries = dats.total_actions;
+            end
+            
+            % Set participant information
+            data(i).participant = dats.participant(1);
+            data(i).participant_id = string(dats.participant_id(1));
+            
+            % Set reward-related fields
+            data(i).Reward = dats.trial_reward > 0;
+            data(i).trial_reward = dats.trial_reward;
+            
+            % Set trial information
+            data(i).trials = dats.trials;
+            
+            % Add likelihood fields if available
+            try
+                data(i).elastic_norm_likelihood = dats.elastic_norm_likelihood;
+                data(i).inelastic_norm_likelihood = dats.inelastic_norm_likelihood;
+                data(i).flat_norm_likelihood = dats.flat_norm_likelihood;
+            catch
+                % Fields not available
+            end
+            
+            % Calculate cost based on number of tries
+            data(i).cost = 0;
+            data(i).cost = 80 .* (data(i).num_tries == 3 & data(i).trials > 4) + ...
+                          60 .* (data(i).num_tries == 2) + ...
+                          40 .* (data(i).num_tries == 1);
+            
+            % Calculate outcome as reward minus cost
+            data(i).outcome = data(i).trial_reward - data(i).cost;
+            
+            % Set condition flags
+            data(i).c_elastic = dats.c_elastic;
+            data(i).c_inelastic = dats.c_inelastic;
+            
+            % Set state transition information
+            data(i).ss_transition = dats.ss_transition;
+            
+            % If this is a simulation, add simulation parameters
+            if sim == 1
+                data(i).beta = dats.beta(1);
+                data(i).epsilon1 = dats.epsilon1(1);
+                data(i).epsilon2 = dats.epsilon2(1);
+                data(i).scale1 = dats.scale1(1);
+                data(i).scale3 = dats.scale3(1);
+                data(i).pers = dats.pers(1);
+                data(i).kaps = dats.kaps(1);
+                data(i).alpha1 = dats.alpha1(1);
+                data(i).alpha2 = dats.alpha2(1);
+                data(i).alpha3 = dats.alpha3(1);
+            end
+            
+            % Get emotional responses if available
+            try
+                data(i).excited = dats.slider_excited_normalized;
+                data(i).content = dats.slider_7_normalized;
+            catch
+                % Emotional responses not available
+            end
+        else
+            warning('Insufficient trials for participant %s (only %d trials)', ...
+                    num2str(part_to_keep), height(dats));
+        end
+    end
+else
+    % Group 2 processing (alternative data format)
+    dd = sortrows(dd, {'id', 'block', 'trials'});
+    
+    for i = 1:length(unique(dd.id))
+        current_list = unique(dd.id);
+        part_to_keep = current_list(i);
+        dats = dd(dd.id == part_to_keep, :);
+        dats = sortrows(dats, {'id', 'block', 'trials'});
+        
+        % If this is a simulation, add simulation parameters
+        if sim == 1
+            data(i).beta = dats.beta(1);
+            data(i).epsilon1 = dats.epsilon1(1);
+            data(i).epsilon2 = dats.epsilon2(1);
+            data(i).scale1 = dats.scale1(1);
+            data(i).scale3 = dats.scale3(1);
+            data(i).pers = dats.pers(1);
+            data(i).kaps = dats.kaps(1);
+            data(i).alpha1 = dats.alpha1(1);
+            data(i).alpha2 = dats.alpha2(1);
+            data(i).alpha3 = dats.alpha3(1);
+        end
+        
+        % Set basic data fields
+        data(i).T = size(dats, 1);
+        
+        % Check for shifted trials
+        if dats.trials(1) == 29
+            disp('Warning: Trials appear to be shifted by one');
+            disp(['ID: ', num2str(dats.id(1))]);
+        end
+        
+        % Get number of tries
+        try
+            data(i).num_tries = dats.num_tries;
+        catch
+            data(i).num_tries = dats.total_actions;
+        end
+        
+        % Set participant information
+        data(i).id = dats.id(1);
+        data(i).participant_id = string(dats.id(1));
+        data(i).participant = double(dats.participant(1));
+        
+        % Set condition flags
+        data(i).c_elastic = dats.c_elastic;
+        data(i).c_inelastic = dats.c_inelastic;
+        
+        % Set reward information
+        data(i).Reward = dats.trial_reward > 0;
+        
+        % Set emotional response data if available
+        data(i).excited = dats.slider_excited_normalized;
+        data(i).content = dats.slider_7_normalized;
+        
+        % Set trial and state transition information
+        data(i).ss_transition = dats.ss_transition;
+        data(i).trials = dats.trials;
+    end
+end
+end
