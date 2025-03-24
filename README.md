@@ -6,6 +6,16 @@ Action is only warranted when it affords control over the environment. The contr
 Author
 Levi Solomyak (levi.solomyak [at] huji.ac.il)
 
+## Experiment
+
+This code analyzes data from an experiment that can be found at:
+**https://run.pavlovia.org/levi.solomyak/control_2_rep**
+
+Feel free to give it a go! Just make sure to enter 1 under Participant 
+
+To see a video of a few sample trials. You cant see here what the participant pressed- so you'll get a much better feel for it by actually doing the task. 
+https://www.loom.com/share/d8dd07f543c342feab5672a884b19198
+
 
 
 ## Repository Structure
