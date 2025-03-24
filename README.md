@@ -21,48 +21,35 @@ https://www.loom.com/share/d8dd07f543c342feab5672a884b19198
 ## Repository Structure
 
 ```bash
-# Resource Elasticity of Control
-
-├── data/                                    # Data files and preprocessing scripts
-│
-├── raw/                                     # Raw experimental data
-├── processed/                               # Cleaned and processed datasets
-│
-├── experiments/                             # Experimental task implementation
-│
-├── assets/                                  # Visual assets for the treasure hunt game
-├── planets/                                 # Planet configuration files
-├── task/                                    # Core game implementation
-    ├── components/                          # UI components
-    └── controllers/                         # Game logic and mechanics
-│
-├── analysis/                                # Analysis scripts and notebooks
-│
-├── models/                                  # Computational model implementations
-    ├── controllability/                     # Controllability model
-    └── elastic/                             # Elastic controllability model
-├── preprocessing/                           # Data cleaning and preparation
-├── modeling/                                # Model fitting and comparison
-└── visualization/                           # Plotting and figure generation
-│
-├── questionnaires/                          # Psychometric measurement tools
-│
-├── scales/                                  # Individual questionnaire implementations
-└── processing/                              # Questionnaire scoring scripts
-│
-├── utils/                                   # Utility functions and helpers
-│
-├── statistics/                              # Statistical analysis functions
-└── helpers/                                 # General helper functions
-│
-├── tests/                                   # Unit tests and integration tests
-│
-├── experiment/                              # Task-related tests
-└── analysis/                                # Analysis pipeline tests
-│
-└── results/                                 # Generated outputs and figures
-    ├── figures/                            # Generated figures
-    └── tables/                             # Generated tables
+|-analysis
+  |  |-01model_free
+  |  |  |-power_analysis
+  |  |-02computational_modeling
+  |  |  |-data
+  |  |  |-helper_functions
+  |  |  |-lik_functions
+  |  |  |-parameter_recovery
+  |  |  |-posterior_sim
+  |  |-03psychopathology
+  |  |  |-cca_analysis
+  |  |  |-process_raw
+  |-data
+  |  |-behavior
+  |  |  |-processed
+  |  |  |-raw
+  |  |-questionnaires
+  |  |  |-processed
+  |  |  |-raw
+  |-experiment
+  |  |-images
+  |  |  |-distinguiish_actions
+  |  |  |-gambling_task
+  |  |  |  |-risk_distributions_final
+  |  |  |-instr_new_draft
+  |  |  |-islands
+  |  |  |-planes
+  |-manuscript
+  |-pre_registration
 ```
 
 
