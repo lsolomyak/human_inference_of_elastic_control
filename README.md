@@ -19,8 +19,6 @@ https://www.loom.com/share/d8dd07f543c342feab5672a884b19198
 
 
 ## Repository Structure
-# Human Inference of Elastic Control
-
 ├── analysis/                                # Analysis code and computational modeling
 │   ├── 01model_free/                        # Model-free analyses
 │   │   └── power_analysis/                  # Power analysis for the experiment
@@ -33,22 +31,21 @@ https://www.loom.com/share/d8dd07f543c342feab5672a884b19198
 │   └── 03psychopathology/                   # Psychopathology analyses
 │       ├── cca_analysis/                    # Canonical correlation analysis
 │       └── process_raw/                     # Processing of raw psychopathology data
-├── data/                                     # Experimental data
+├── data/                                    # Experimental data
 │   ├── behavior/                            # Behavioral data
 │   │   ├── processed/                       # Cleaned and processed behavioral data
 │   │   └── raw/                             # Raw behavioral data
 │   └── questionnaires/                      # Questionnaire data
 │       ├── processed/                       # Processed questionnaire data
 │       └── raw/                             # Raw questionnaire responses
-├── experiment/                               # Experimental task implementation
+├── experiment/                              # Experimental task implementation
 │   └── images/                              # Visual assets for experiment
 │       ├── distinguish_actions/             # Images for action discrimination
 │       ├── instr_new_draft/                 # Instruction images
 │       ├── islands/                         # Island environment images
 │       └── planes/                          # Plane/vehicle images
-├── manuscript/                               # Paper manuscript files
-└── pre_registration/                         # Pre-registration documents
-
+├── manuscript/                              # Paper manuscript files
+└── pre_registration/                        # Pre-registration documents
 
 
 
