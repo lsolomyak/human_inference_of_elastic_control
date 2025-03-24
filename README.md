@@ -9,7 +9,7 @@ Levi Solomyak (levi.solomyak [at] huji.ac.il)
 ## Experiment
 
 This code analyzes data from an experiment that can be found at:
-**https://run.pavlovia.org/eldarlabccl/control_1_replication**
+**https://run.pavlovia.org/levi.solomyak/control_2_rep**
 
 Feel free to give it a go! Just make sure to enter 1 under Participant 
 
