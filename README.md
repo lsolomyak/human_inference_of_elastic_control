@@ -20,37 +20,34 @@ https://www.loom.com/share/d8dd07f543c342feab5672a884b19198
 
 ## Repository Structure
 
-```bash
-|-analysis
-  |  |-01model_free
-  |  |  |-power_analysis
-  |  |-02computational_modeling
-  |  |  |-data
-  |  |  |-helper_functions
-  |  |  |-lik_functions
-  |  |  |-parameter_recovery
-  |  |  |-posterior_sim
-  |  |-03psychopathology
-  |  |  |-cca_analysis
-  |  |  |-process_raw
-  |-data
-  |  |-behavior
-  |  |  |-processed
-  |  |  |-raw
-  |  |-questionnaires
-  |  |  |-processed
-  |  |  |-raw
-  |-experiment
-  |  |-images
-  |  |  |-distinguiish_actions
-  |  |  |-gambling_task
-  |  |  |  |-risk_distributions_final
-  |  |  |-instr_new_draft
-  |  |  |-islands
-  |  |  |-planes
-  |-manuscript
-  |-pre_registration
-```
+.
+├── analysis/                                # Analysis code and computational modeling
+│   ├── 01model_free/                        # Model-free analyses
+│   │   └── power_analysis/                  # Power analysis for the experiment
+│   ├── 02computational_modeling/            # Computational modeling code
+│   │   ├── data/                            # Data for modeling
+│   │   ├── helper_functions/                # Utility functions for modeling
+│   │   ├── lik_functions/                   # Likelihood functions
+│   │   ├── parameter_recovery/              # Parameter recovery simulations
+│   │   └── posterior_sim/                   # Posterior simulations
+│   └── 03psychopathology/                   # Psychopathology analyses
+│       ├── cca_analysis/                    # Canonical correlation analysis
+│       └── process_raw/                     # Processing of raw psychopathology data
+├── data/                                     # Experimental data
+│   ├── behavior/                            # Behavioral data
+│   │   ├── processed/                       # Cleaned and processed behavioral data
+│   │   └── raw/                             # Raw behavioral data
+│   └── questionnaires/                      # Questionnaire data
+│       ├── processed/                       # Processed questionnaire data
+│       └── raw/                             # Raw questionnaire responses
+├── experiment/                               # Experimental task implementation
+│   └── images/                              # Visual assets for experiment
+│       ├── distinguish_actions/             # Images for action discrimination
+│       ├── instr_new_draft/                 # Instruction images
+│       ├── islands/                         # Island environment images
+│       └── planes/                          # Plane/vehicle images
+├── manuscript/                               # Paper manuscript files
+└── pre_registration/                         # Pre-registration documents
 
 
 
