@@ -13,6 +13,9 @@ This code analyzes data from an experiment that can be found at:
 
 Feel free to give it a go! Just make sure to enter 1 under Participant 
 
+To see a video of a few sample trials
+https://www.loom.com/share/d8dd07f543c342feab5672a884b19198
+
 
 
 ## Repository Structure
