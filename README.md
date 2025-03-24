@@ -17,7 +17,7 @@ To see a video of a few sample trials. You cant see here what the participant pr
 https://www.loom.com/share/d8dd07f543c342feab5672a884b19198
 
 
-
+```
 ## Repository Structure
 ├── analysis/                                # Analysis code and computational modeling
 │   ├── 01model_free/                        # Model-free analyses
@@ -47,5 +47,5 @@ https://www.loom.com/share/d8dd07f543c342feab5672a884b19198
 ├── manuscript/                              # Paper manuscript files
 └── pre_registration/                        # Pre-registration documents
 
-
+```
 
