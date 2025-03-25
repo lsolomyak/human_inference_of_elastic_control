@@ -17,54 +17,35 @@ To see a video of a few sample trials. You cant see here what the participant pr
 https://www.loom.com/share/d8dd07f543c342feab5672a884b19198
 
 
-
-## Repository Structure
-
-```bash
-# Resource Elasticity of Control
-
-├── data/                                    # Data files and preprocessing scripts
-│
-├── raw/                                     # Raw experimental data
-├── processed/                               # Cleaned and processed datasets
-│
-├── experiments/                             # Experimental task implementation
-│
-├── assets/                                  # Visual assets for the treasure hunt game
-├── planets/                                 # Planet configuration files
-├── task/                                    # Core game implementation
-    ├── components/                          # UI components
-    └── controllers/                         # Game logic and mechanics
-│
-├── analysis/                                # Analysis scripts and notebooks
-│
-├── models/                                  # Computational model implementations
-    ├── controllability/                     # Controllability model
-    └── elastic/                             # Elastic controllability model
-├── preprocessing/                           # Data cleaning and preparation
-├── modeling/                                # Model fitting and comparison
-└── visualization/                           # Plotting and figure generation
-│
-├── questionnaires/                          # Psychometric measurement tools
-│
-├── scales/                                  # Individual questionnaire implementations
-└── processing/                              # Questionnaire scoring scripts
-│
-├── utils/                                   # Utility functions and helpers
-│
-├── statistics/                              # Statistical analysis functions
-└── helpers/                                 # General helper functions
-│
-├── tests/                                   # Unit tests and integration tests
-│
-├── experiment/                              # Task-related tests
-└── analysis/                                # Analysis pipeline tests
-│
-└── results/                                 # Generated outputs and figures
-    ├── figures/                            # Generated figures
-    └── tables/                             # Generated tables
 ```
+## Repository Structure
+├── analysis/                                # Analysis code and computational modeling
+│   ├── 01model_free/                        # Model-free analyses
+│   │   └── power_analysis/                  # Power analysis for the experiment
+│   ├── 02computational_modeling/            # Computational modeling code
+│   │   ├── data/                            # Data for modeling
+│   │   ├── helper_functions/                # Utility functions for modeling
+│   │   ├── lik_functions/                   # Likelihood functions
+│   │   ├── parameter_recovery/              # Parameter recovery simulations
+│   │   └── posterior_sim/                   # Posterior simulations
+│   └── 03psychopathology/                   # Psychopathology analyses
+│       ├── cca_analysis/                    # Canonical correlation analysis
+│       └── process_raw/                     # Processing of raw psychopathology data
+├── data/                                    # Experimental data
+│   ├── behavior/                            # Behavioral data
+│   │   ├── processed/                       # Cleaned and processed behavioral data
+│   │   └── raw/                             # Raw behavioral data
+│   └── questionnaires/                      # Questionnaire data
+│       ├── processed/                       # Processed questionnaire data
+│       └── raw/                             # Raw questionnaire responses
+├── experiment/                              # Experimental task implementation
+│   └── images/                              # Visual assets for experiment
+│       ├── distinguish_actions/             # Images for action discrimination
+│       ├── instr_new_draft/                 # Instruction images
+│       ├── islands/                         # Island environment images
+│       └── planes/                          # Plane/vehicle images
+├── manuscript/                              # Paper manuscript files
+└── pre_registration/                        # Pre-registration documents
 
-
-
+```
 
