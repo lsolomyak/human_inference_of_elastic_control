@@ -7,7 +7,7 @@
 #' @return A cleaned data frame of experimental results
 #' @export
 #' 
-#' ':=' <- function(lhs, rhs) {
+ ':=' <- function(lhs, rhs) {
 frame <- parent.frame()
 lhs <- as.list(substitute(lhs))
 if (length(lhs) > 1)

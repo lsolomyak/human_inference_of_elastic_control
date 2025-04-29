@@ -1,5 +1,5 @@
 # ------------------------------------------------------
-# Regression Analysis for Controllability and Decision Making
+# Regression Analysis 3d
 # ------------------------------------------------------
 
 # Load required libraries
@@ -12,6 +12,15 @@ library(ggpubr)
 library(zoo)
 library(data.table)
 library(scales)
+# determine script directory (works when run via Rscript)
+args        <- commandArgs(trailingOnly = FALSE)
+file_arg    <- grep("^--file=", args, value = TRUE)
+script_path <- if (length(file_arg)) sub("^--file=", "", file_arg) else getwd()
+script_dir  <- dirname(normalizePath(script_path))
+
+# point to the local “results” folder and create it
+
+
 
 # ------------------------------------------------------
 # Helper Functions
@@ -55,75 +64,32 @@ spec_theme_reg <- theme(
 #' @param model_new Second regression model
 #' @return ggplot object comparing fixed effects
 plot_fixed_effects <- function(model_old, model_new) {
-  # Extract confidence intervals
-  conf_intervals_old <- model_old[3]
-  conf_intervals_new <- model_new[3]
+  ci_old <- as.data.frame(confint(model_old, parm="beta_", method="Wald"))
+  ci_new <- as.data.frame(confint(model_new, parm="beta_", method="Wald"))
   
-  # Convert to data frames and add identifiers
-  fixed_effects_df_new <- as.data.frame(conf_intervals_new)
-  fixed_effects_df_old <- as.data.frame(conf_intervals_old)
-  fixed_effects_df_new$Term <- rownames(fixed_effects_df_new)
-  fixed_effects_df_old$Term <- rownames(fixed_effects_df_old)
-  fixed_effects_df_old$Group <- 1
-  fixed_effects_df_new$Group <- 2
+  ci_old$Term <- rownames(ci_old);     ci_old$Group <- "initial"
+  ci_new$Term <- rownames(ci_new);     ci_new$Group <- "replication"
   
-  # Combine data frames
-  fixed_effects_df <- rbind(fixed_effects_df_old, fixed_effects_df_new)
-  colnames(fixed_effects_df) <- c("lower", "upper", "var", "Group")
-  
-  # Calculate midpoints
-  fixed_effects_df <- fixed_effects_df %>% 
-    dplyr::mutate(midpoint = (lower + upper) / 2)
-  
-  # Convert to long format
-  fixed_effects_df_long <- tidyr::pivot_longer(
-    fixed_effects_df, 
-    c("lower", "upper", "midpoint"), 
-    names_to = "CI", 
-    values_to = "Value"
+  df <- rbind(ci_old, ci_new)
+  colnames(df)[1:2] <- c("lower", "upper")
+  df <- subset(df, Term != "(Intercept)")
+  df$mid  <- (df$lower + df$upper) / 2
+  df$Term <- factor(
+    df$Term,
+    levels = c("c_elastic", "c_inelastic"),
+    labels = c("Elastic\nControllability", "Inelastic\nControllability")
   )
   
-  # Convert back to wide format for plotting
-  fixed_effects_df_wide <- spread(fixed_effects_df_long, CI, Value)
-  
-  # Define labels
-  feature_labels <- c(
-    "c_elastic" = "ElasticControllability",
-    "c_inelastic" = "InelasticControllability",
-    "(Intercept)" = "Intercept"
-  )
-  
-  # Format variable names and filter out intercept
-  fixed_effects_df_wide$var <- factor(
-    fixed_effects_df_wide$var, 
-    levels = names(feature_labels), 
-    labels = feature_labels
-  )
-  fixed_effects_df_wide <- fixed_effects_df_wide %>% 
-    dplyr::filter(var != "Intercept")
-  
-  # Create plot
-  gp <- ggplot(fixed_effects_df_wide, aes(x = var)) +
-    geom_errorbar(
-      aes(ymin = lower, ymax = upper, color = factor(Group)), 
-      width = 0.2, 
-      size = 1.2, 
-      position = position_dodge(width = 0.35)
-    ) +
-    geom_point(
-      aes(y = midpoint, color = factor(Group)), 
-      position = position_dodge(width = 0.35), 
-      size = 4
-    ) +
+  ggplot(df, aes(x = Term, y = mid, color = Group)) +
+    geom_errorbar(aes(ymin = lower, ymax = upper),
+                  width = 0.2, size = 1.2,
+                  position = position_dodge(0.35)) +
+    geom_point(size = 4, position = position_dodge(0.35)) +
     coord_flip() +
     expand_limits(y = 0) +
     spec_theme_reg +
-    theme(axis.title = element_text(size = 24)) +
-    labs(y = "Log-odds effect on opting-in", x = "", title = "") +
-    scale_x_discrete(labels = c("Elastic\nControllability", "Inelastic\nControllability")) +
-    scale_color_manual(labels = c("Group 1", "Group 2"), values = c("steelblue", "navy"))
-  
-  return(gp)
+    labs(y = "Log-odds effect on opting-in", x = "") +
+    scale_color_manual(values = c("steelblue", "navy"))
 }
 
 # ------------------------------------------------------
@@ -169,21 +135,33 @@ run_opt_in_regression <- function(data, real = 1, rep = 0) {
   dd$total_actions_factor <- as.ordered(dd$total_actions)
   dd$block <- as.ordered(dd$block)
   dd <- dd %>% dplyr::mutate(opt_in = total_actions > 0)
-  
+  dd <- dd %>%
+    dplyr::mutate(
+      c_elastic_s   = scale(c_elastic),
+      c_inelastic_s = scale(c_inelastic)
+    )
   # Run appropriate regression model based on participant ID type
   if (rep == 1) {
     # Using ID as participant identifier
     model <- lme4::glmer(
-      opt_in ~ c_elastic + c_inelastic + (1 | block_num), 
+      opt_in ~ c_elastic + c_inelastic +(1+c_elastic + c_inelastic|id) + (1 | block_num), 
       family = binomial, 
-      data = dd
+      data = dd,
+      control = glmerControl(
+        optimizer  = "bobyqa",
+        optCtrl    = list(maxfun = 2e5)
+      )
     )
   } else {
     # Using participant as identifier
     model <- lme4::glmer(
-      opt_in ~ c_elastic + c_inelastic + (1 | block_num), 
+      opt_in ~ c_elastic + c_inelastic +(1+c_elastic + c_inelastic|participant) + (1 | block_num), 
       family = binomial, 
-      data = dd
+      data = dd,
+      control = glmerControl(
+        optimizer  = "bobyqa",
+        optCtrl    = list(maxfun = 2e5)
+      )
     )
   }
   
@@ -339,11 +317,12 @@ generate_opt_reg_plot <- function(line_data, agg_data) {
 #' @return Processed data with regression predictions
 run_extra_action_regression <- function(data, real = 1, rep = 0) {
   # Select relevant columns
-  dd <- data %>% 
-    dplyr::select(
-      participant, block, trials, c_elastic, c_inelastic, 
-      total_actions, trial_reward, ss_transition
-    )
+  cols <- c("participant","block","trials","c_elastic","c_inelastic",
+            "total_actions","trial_reward","ss_transition")
+  if (rep==1) cols <- c("id", cols)
+  dd <- data %>% select(all_of(cols))
+
+
   
   # Filter data based on experiment phase
   if (real == 1) {
@@ -375,19 +354,33 @@ run_extra_action_regression <- function(data, real = 1, rep = 0) {
   dd <- dd %>% dplyr::filter(trials > 14)
   dd$total_actions_factor <- as.ordered(dd$extra_actions)
   dd$block <- as.ordered(dd$block)
-  
+  dd <- dd %>%
+    dplyr::mutate(
+      c_elastic_s   = scale(c_elastic),
+      c_inelastic_s = scale(c_inelastic)
+    )
   # Run appropriate regression model
   if (rep == 0) {
     model <- clmm(
-      total_actions_factor ~ c_elastic + c_inelastic + (1 | participant) + (1 | block_num), 
+      total_actions_factor ~ c_elastic + c_inelastic + (1 +c_elastic + c_inelastic | participant) + (1 | block_num), 
       link = "probit", 
-      data = dd
+      data = dd,
+      control = clmm.control(
+        maxIter   = 50,    # Newton–Raphson iterations
+        maxIterEM = 200,   # EM iterations
+        tol       = 1e-4   # convergence tolerance
+      )
     )
   } else {
     model <- clmm(
       total_actions_factor ~ c_elastic + c_inelastic + (1 | id) + (1 | block_num), 
       link = "probit", 
-      data = dd
+      data = dd,
+      control = clmm.control(
+        maxIter   = 50,    # Newton–Raphson iterations
+        maxIterEM = 200,   # EM iterations
+        tol       = 1e-4   # convergence tolerance
+      )
     )
   }
   
@@ -400,16 +393,20 @@ run_extra_action_regression <- function(data, real = 1, rep = 0) {
   random_effects <- ranef(model)
   
   # Extract participant-specific effects
-  if (rep == 0) {
-    elastic_fits <- fixed_effects["c_elastic"] + random_effects$participant[, "c_elastic"]
-    inelastic_fits <- fixed_effects["c_inelastic"] + random_effects$participant[, "c_inelastic"]
-    intercept <- random_effects$participant[, 1, drop = FALSE]
-  } else {
-    elastic_fits <- fixed_effects["c_elastic"] + random_effects$id[, "c_elastic"]
-    inelastic_fits <- fixed_effects["c_inelastic"] + random_effects$id[, "c_inelastic"]
-    intercept <- random_effects$id[, 1, drop = FALSE]
-  }
-  
+# Extract fixed and random effects (option 1)
+fixed_coefs <- model$beta
+if (rep == 0) {
+  ran_int <- ranef(model)$participant[, "(Intercept)"]
+} else {
+  ran_int <- ranef(model)$id[, "(Intercept)"]
+}
+
+participant_effects <- data.frame(
+  intercept        = ran_int,
+  slope_elastic    = fixed_coefs["c_elastic"],
+  slope_inelastic  = fixed_coefs["c_inelastic"]
+)
+
   # Create data frame with participant effects
   participant_effects <- data.frame(
     intercept = intercept, 
@@ -469,6 +466,68 @@ run_extra_action_regression <- function(data, real = 1, rep = 0) {
   
   return(linesr)
 }
+# Load required libraries
+library(zoo)
+library(ordinal)
+
+run_extra_action_regression <- function(data, real = 1, rep = 0) {
+  # Select relevant columns
+  base_cols <- c("participant","block","trials",
+                 "c_elastic","c_inelastic",
+                 "total_actions","trial_reward","ss_transition")
+  cols <- if (rep == 1) c("id", base_cols) else base_cols
+  dd <- dplyr::select(data, dplyr::all_of(cols))
+  
+  # Filter by experiment phase
+  if (real == 1) {
+    dd <- dd %>% 
+      dplyr::filter(block > 5) %>% 
+      dplyr::mutate(block = block - 5)
+  }
+  
+  # Handle missing values and duplicates
+  dd$ss_transition <- zoo::na.locf(dd$ss_transition)
+  dd <- dd[!duplicated(dd), ]
+  
+  # Derived variables
+  dd <- dd %>%
+    dplyr::mutate(
+      rewarded      = ifelse(trial_reward > 0, 1, 0),
+      part          = if (rep == 1) match(id, unique(id)) else match(participant, unique(participant)),
+      block_num     = (part - 1) * 4 + block,
+      extra_actions = ifelse(total_actions > 0, total_actions - 1, 0)
+    ) %>%
+    dplyr::filter(trials > 14) %>%
+    dplyr::mutate(
+      total_actions_factor = as.ordered(extra_actions),
+      block                = as.ordered(block),
+      c_elastic_s          = as.numeric(scale(c_elastic)),
+      c_inelastic_s        = as.numeric(scale(c_inelastic))
+    )
+  
+  # Fit cumulative link mixed model
+  if (rep == 1) {
+    model <- ordinal::clmm(
+      total_actions_factor ~ c_elastic_s + c_inelastic_s +
+        (1 + c_elastic_s + c_inelastic_s | id) +
+         (1 | block_num),
+      link    = "probit",
+      data    = dd,
+      control = ordinal::clmm.control(maxIter = 50)
+    )
+  } else {
+    model <- ordinal::clmm(
+      total_actions_factor ~ c_elastic_s + c_inelastic_s +
+        (1 + c_elastic_s + c_inelastic_s | participant) +
+        (1 | block_num),
+      link    = "probit",
+      data    = dd,
+      control = ordinal::clmm.control(maxIter = 50)
+    )
+  }
+  
+  return(model)
+}
 
 # ------------------------------------------------------
 # Main Execution
@@ -480,76 +539,88 @@ output_dir <- "figures/regression"
 # Uncomment the following lines to run the analysis with your data
 
 # # Run regression models
-# model_old <- run_opt_in_regression(data_old, real = 1)
-# model_new <- run_opt_in_regression(data_final, real = 1)
+model_old <- run_opt_in_regression(data_old, real = 1)
+model_new <- run_opt_in_regression(data_final, real = 1)
 # 
 # # Plot fixed effects comparison
-# ps1 <- plot_fixed_effects(model_old, model_new)
+ps1 <- plot_fixed_effects(model_old, model_new)
 # 
 # # Save fixed effects plot
-# if (!dir.exists(output_dir)) {
-#   dir.create(output_dir, recursive = TRUE)
-# }
-# png(
-#   file.path(output_dir, "basic_regression_comparison.png"), 
-#   width = 12, height = 5, units = "in", res = 300
-# )
-# print(ps1)
-# dev.off()
+output_dir <- "results"
+if (!dir.exists(output_dir)) dir.create(output_dir)
+setwd(output_dir)
+
+# now any png() will land here
+png("fig3c.png", width=12, height=5, units="in", res=300)
+print(ps1)
+dev.off()
+png(
+  file.path(output_dir, "basic_regression_comparison.png"),
+  width = 12, height = 5, units = "in", res = 300
+)
+print(ps1)
+dev.off()
+
 # 
 # # Run extra action regression
-# linesr_new <- run_extra_action_regression(data_final, real = 1, rep = 0)
-# 
-# # Create elastic regression plot
-# elastic_plot <- ggplot(linesr_new, aes(x = x, y = perc, color = factor(intercept))) +
-#   geom_line() +
-#   spec_theme_reg +
-#   geom_smooth(method = "lm", se = TRUE, color = "black") +
-#   labs(y = "# of extra actions", x = "Elastic controllability") +
-#   expand_limits(y = 0) +
-#   scale_y_continuous(limits = c(0, 2), breaks = seq(0, 2, 1)) +
-#   scale_x_continuous(labels = scales::percent_format())
-# 
-# # Save elastic regression plot
-# png(
-#   file.path(output_dir, "elastic_regression.png"), 
-#   width = 8, height = 8, units = "in", res = 700
-# )
-# print(elastic_plot)
-# dev.off()
-# 
-# # Process opt-in regression visualization data
-# agg_1 <- get_aggregated_data(d1)
-# agg_2 <- get_aggregated_data(d2)
-# 
-# # Create opt-in regression plots
-# gs_1 <- generate_opt_reg_plot(d1, agg_1)
-# gs_2 <- generate_opt_reg_plot(d2, agg_2)
-# 
-# # Add annotations to plots
-# gs_with_annotation_1 <- ggpubr::annotate_figure(
-#   gs_1,
-#   top = text_grob("Dataset 1", color = "black", size = 30),
-#   left = text_grob(
-#     "Probability of opt in", 
-#     color = "black", 
-#     size = 30, 
-#     rot = 90, 
-#     x = 1.15, 
-#     y = 0.5
-#   )
-# )
-# 
-# gs_with_annotation_2 <- ggpubr::annotate_figure(
-#   gs_2,
-#   top = text_grob("Dataset 2", color = "black", size = 30)
-# )
-# 
-# # Combine and save plots
-# combined_plots <- ggarrange(gs_with_annotation_1, gs_with_annotation_2)
-# png(
-#   file.path(output_dir, "opt_in_comparison.png"), 
-#   width = 8, height = 8, units = "in", res = 700
-# )
-# print(combined_plots)
-# dev.off()
+linesr_new <- run_extra_action_regression(data_final, real = 1, rep = 1)
+linesr_old <- run_extra_action_regression(data_old, real = 1, rep = 0)
+# extract fixed‐effect estimates and their SEs
+check_p <- function(linesr){
+  beta <- linesr_new$beta
+se   <- sqrt(diag(vcov(linesr_new)))
+
+# compute z‐statistic for c_elastic_s
+z_elastic <- beta["c_elastic_s"] / se["c_elastic_s"]
+
+# two‐sided p‐value
+p_elastic <- 2 * (1 - pnorm(abs(z_elastic)))
+if(p_elastic <.0001){ p_elastic=.0001; print('p value is below .0001')}
+}
+check_p(linesr_new)
+check_p(linesr_old)
+
+plot_extra_action_effects <- function(model_old, model_new) {
+  get_ci <- function(mod, grp) {
+    beta <- mod$beta[c("c_elastic_s","c_inelastic_s")]
+    se   <- sqrt(diag(vcov(mod)))[names(beta)]
+    data.frame(
+      Term     = names(beta),
+      lower    = beta - 1.96*se,
+      midpoint = beta,
+      upper    = beta + 1.96*se,
+      Group    = grp,
+      row.names = NULL
+    )
+  }
+  
+  ci_old <- get_ci(model_old, "initial")
+  ci_new <- get_ci(model_new, "replication")
+  df     <- rbind(ci_old, ci_new)
+  
+  df$Term <- factor(df$Term,
+                    levels = c("c_elastic_s","c_inelastic_s"),
+                    labels = c("Elastic\ncontrollability","Inelastic\ncontrollability")
+  )
+  
+  ggplot(df, aes(x = Term, y = midpoint, color = Group)) +
+    geom_errorbar(aes(ymin = lower, ymax = upper),
+                  width = 0.2, size = 1.2,
+                  position = position_dodge(0.35)) +
+    geom_point(size = 4, position = position_dodge(0.35)) +
+    coord_flip() +
+    expand_limits(y = 0) +
+    spec_theme_reg +
+    labs(y = "Effect on extra actions\n", x = "") +
+    geom_hline(yintercept = 0) +
+    scale_color_manual(values = c("steelblue","navy"))
+}
+ps2 <- plot_extra_action_effects(linesr_old,linesr_new)
+output_dir <- "results"
+if (!dir.exists(output_dir)) dir.create(output_dir)
+setwd(output_dir)
+
+# now any png() will land here
+png("fig3c_part2.png", width=12, height=5, units="in", res=300)
+print(ps2)
+

@@ -20,6 +20,9 @@ library(ggplot2)
 library(reshape2)
 library(hrbrthemes)
 library(matrixStats)
+library(here)
+
+here::i_am("analysis/01model_free/00_task_design.R")
 
 # ============================================================================ #
 # THEME SETTINGS
@@ -148,7 +151,7 @@ calculate_optimal_strategies <- function() {
   df <- generate_allowed_points()
   
   # Calculate expected values for different action counts
-  df <- df %>% mutate(
+  df <- df %>% dplyr::mutate(
     ev0 = get_ev_new(c_inelastic, c_elastic, 0),
     ev1 = get_ev_new(c_inelastic, c_elastic, 1),
     ev2 = get_ev_new(c_inelastic, c_elastic, 2),
@@ -157,7 +160,7 @@ calculate_optimal_strategies <- function() {
   
   # Identify maximum expected value
   df <- df %>% 
-    group_by(c_inelastic, c_elastic) %>% 
+    dplyr::group_by(c_inelastic, c_elastic) %>% 
     dplyr::mutate(df = max(ev0, ev1, ev2, ev3))
   
   # Calculate advantage of each strategy over others
@@ -278,8 +281,26 @@ plot_empty_triangle <- function(output_dir = NULL, filename = "empty_triangle.pn
   return(g)
 }
 
+if (interactive()) {
+  library(readr); library(ggplot2)
+  # load your data
+  # compute and plot
+  out <- calculate_optimal_strategies()
+  p   <- plot_optimal_triangle(out$full_data)
+  # save to file
+  script_dir <- dirname(rstudioapi::getActiveDocumentContext()$path)
+  
+  results_dir <- file.path(script_dir, "results")
+  dir.create(results_dir, showWarnings = FALSE)
+  ggsave(
+    filename = file.path(results_dir, "optimal_strategies.png"),
+    plot     = p,
+    width    = 13, height = 8, units = "in", dpi = 400
+  )
+  }
+
 # ============================================================================ #
-# BEHAVIORAL DATA ANALYSIS
+# BEHAVIORAL DATA ANALYSIS-Generates Figures 3A and 3B
 # ============================================================================ #
 
 #' Analyze opt-in behavior across controllability space
@@ -390,19 +411,11 @@ plot_optin_triangle <- function(x, first = 1, output_dir = NULL, filename = NULL
     my_palette(500 - round(min_actions * 500))
   )
   
-  # Define red edge condition function
-  red_edge_condition <- function(data) {
-    (data$c_inelastic == 0 & data$c_elastic >= 0 & data$c_elastic < 0.67)
-  }
+
   
   # Create plot
   g <- ggplot() +
     geom_tile(data = x, aes(x = c_inelastic, y = c_elastic, fill = total_actions, alpha = total_actions)) +
-    geom_segment(
-      data = x[red_edge_condition(x), ], 
-      aes(x = 0, y = c_elastic, xend = 0, yend = c_elastic + 0.1),
-      color = "#F25C54", size = 4
-    ) +
     scale_fill_gradientn(
       colors = custom_palette, 
       name = "% Opt in", 
@@ -561,6 +574,36 @@ plot_extra_triangle <- function(x, first = 1, output_dir = NULL, filename = NULL
   
   return(g)
 }
+
+if (interactive()) {
+  # load CSVs relative to project root
+  initial_data     <- readr::read_csv(here("data","behavior","processed","initial_study.csv"))
+  replication_data <- readr::read_csv(here("data","behavior","processed","replication_study.csv"))
+  
+  # compute triangles
+  init_opt <- generate_opt_in_triangle(initial_data)
+  rep_opt  <- generate_opt_in_triangle(replication_data)
+  init_extra <- generate_action_triangle(initial_data)
+  rep_extra  <- generate_action_triangle(replication_data)
+  # plot side‐by‐side
+  p1 <- plot_optin_triangle(init_opt, first=1)
+  p2 <- plot_optin_triangle(rep_opt,  first=0)
+  combo <- ggpubr::ggarrange(p1, p2, ncol=2)
+  
+  p3 <- plot_extra_triangle(init_extra, first=1)
+  p4 <- plot_extra_triangle(rep_extra,  first=0)
+  combo_extra <- ggpubr::ggarrange(p3, p4, ncol=2)
+  
+  # save into project results folder
+  dir.create(here("results"), showWarnings=FALSE)
+  ggplot2::ggsave(here("results","optin_comparison.png"),
+                  plot=combo, width=16, height=8, dpi=300)
+  ggplot2::ggsave(here("results","extra_comparison.png"),
+                  plot=combo_extra, width=16, height=8, dpi=300)
+  
+  }
+
+
 
 # ============================================================================ #
 # POWER ANALYSIS FUNCTIONS
