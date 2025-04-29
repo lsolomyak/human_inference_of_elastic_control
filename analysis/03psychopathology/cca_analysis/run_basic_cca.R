@@ -1,14 +1,12 @@
-# CCA Analysis for Control Studies
-# This script performs canonical correlation analysis on control study data
+# CCA Analysis 
 
 # Load required functions
-source("scripts/analyses/03_questionaire/scripts/R/cca_functions.R")
-
+source("~/Documents/GitHub/human_inference_of_elastic_control/analysis/03psychopathology/cca_analysis/cca_helper_functions.R")
 # Load pre-processed data (update path to be relative for GitHub)
-load("data/cca_data/all_cca_variables.RData")
+load("/Users/levisolomyak/Documents/GitHub/human_inference_of_elastic_control/analysis/03psychopathology/processed_cca/all_cca_variables.RData")
 
 # Option to reload and reprocess data
-re_load <- 0  # Set to 1 to reprocess data, 0 to use saved results
+re_load <- 1  # Set to 1 to reprocess data, 0 to use saved results
 if(re_load == 1) {
   # Load and prepare data
   c(scoress, togethers) := prepare_new_for_cca(use_saved = 0, 

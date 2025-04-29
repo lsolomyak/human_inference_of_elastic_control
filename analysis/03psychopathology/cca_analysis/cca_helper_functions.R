@@ -7,10 +7,10 @@ library(readr)
 library(data.table)
 
 # Define project paths (update these paths based on your repository structure)
-ROOT_DIR <- "../.."  # Two levels up from the script location
-DATA_DIR <- file.path(ROOT_DIR, "data/questionnaires/processed")
+# Define project paths with absolute paths
+ROOT_DIR <- "/Users/levisolomyak/Documents/GitHub/human_inference_of_elastic_control"
+DATA_DIR <- file.path(ROOT_DIR, "analysis/02computational_modeling/posterior_sim/fits_for_sim")
 RESULTS_DIR <- file.path(ROOT_DIR, "results/figures")
-
 #' Calculate optimal actions and expected values
 #'
 #' @param data Dataframe with behavioral data
@@ -152,7 +152,7 @@ prepare_cca <- function(modelst, scores, replication, separate) {
     part <- merge_data %>% dplyr::select(participant_id)
   } else {
     scaless <- modelst %>%
-      dplyr::select(matches('^(participant_id|scale|epsilon|beta|kaps|alpha|pers|elasticity_use)')) %>%
+      dplyr::select(matches('^(participant_id|scale|epsilon|beta|alpha|pers|elasticity_use)')) %>%
       dplyr::mutate(
         scale_epsilon_elastic = ((scale1 - 0.5) * epsilon1),
         scale_epsilon_control = ((scale3 - 0.5) * epsilon2)
@@ -170,7 +170,7 @@ prepare_cca <- function(modelst, scores, replication, separate) {
   
   if(separate == 0) {
     togethers <- scales_onlys %>% 
-      dplyr::select(matches('^(scale_epsilon|beta|kaps|pers|alpha|elasticity_use)'))
+      dplyr::select(matches('^(scale_epsilon|beta|pers|alpha|elasticity_use)'))
   } else {
     togethers <- scales_onlys %>% 
       dplyr::select(matches('^(scale|epsilon|beta|alpha)')) %>% 
@@ -197,7 +197,8 @@ prepare_old_for_cca <- function(use_combined_fit = 0, apply_scale = 1, separate 
   print('preparing first dataset')
   
   # Load scores
-  score_old <- read.csv(file.path(DATA_DIR, 'scores_group1.csv'))
+  library(here)
+  score_old <- read.csv(here::here('data', 'questionnaires', 'processed', 'scores_group1_31_3_24.csv'))
   score_old <- score_old[, -1]  # Remove first column (likely row numbers)
   
   if(apply_scale == 0) {
@@ -210,7 +211,7 @@ prepare_old_for_cca <- function(use_combined_fit = 0, apply_scale = 1, separate 
   
   # Load model parameters
   if(use_combined_fit == 1) {
-    model_combined <- read_csv(file.path(DATA_DIR, 'combined_fits.csv'))
+    model_combined <- read_csv(file.path(DATA_DIR, 'e_c_star.csv'))
     
     model_combined <- model_combined %>%
       dplyr::mutate(dataset = ifelse(grepl("[a-zA-Z]", participant), 2, 1))
@@ -246,7 +247,7 @@ prepare_old_for_cca <- function(use_combined_fit = 0, apply_scale = 1, separate 
 prepare_new_for_cca <- function(use_saved = 0, use_combined_fit = 0, dont_apply_scale = 0, separate = 0) {
   # Load model parameters
   if(use_combined_fit == 1) {
-    model_combined <- read_csv(file.path(DATA_DIR, 'combined_fits.csv'))
+    model_combined <- read_csv(file.path(DATA_DIR, 'e_c_star.csv'))
     
     model_combined <- model_combined %>%
       dplyr::mutate(dataset = ifelse(grepl("[a-zA-Z]", participant), 2, 1))
@@ -268,14 +269,16 @@ prepare_new_for_cca <- function(use_saved = 0, use_combined_fit = 0, dont_apply_
   
   # Load and prepare scores
   if(use_saved) {
-    scoress_df <- read_csv(file.path(DATA_DIR, 'scores_weighted_by_items.csv'))
+    scores_df <- read.csv(here::here('data', 'questionnaires', 'processed', 'scores_group1_31_3_24.csv'))
     scoress_df <- scoress_df %>% distinct(id, .keep_all = TRUE)
     result <- prepare_cca(model1, scoress_df, 1, 0)
     scoress <- result[[1]]
     togethers <- result[[2]]
     part <- result[[3]]
   } else {
-    scores <- read_csv(file.path(DATA_DIR, 'scores_group2.csv'))
+    #scores <- read.csv('data/questionnaires/processed/scores_group2_31_3_24.csv')
+    scores <-read.csv(here::here('data', 'questionnaires', 'processed', 'scores_group2_31_3_24.csv'))
+    
     scores <- scores[, -1]
     scores$participant_id <- scores$id
     
