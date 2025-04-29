@@ -1,31 +1,32 @@
 %%
-% Parameter recovery using optimal subjects
+% Parameter recovery to determine confusio betwen concentraion (epsilon)
+% and bias (scale)
 clear 
 clc
 close all
 
-% Load the optimal subjects data
-load('optimal_subjects_control.csv'); % This should contain selected_subjects, true_P, and sim_data
-%%
+data_folder = fullfile(pwd, 'modeling_data');  % Uses current working directory to access data folder
+
 % If you need the original data for reference
-load('C:\Users\owner\Desktop\elasticity_modeling\data\combined_data.mat'); % Contains 'data' structure
+load(fullfile(data_folder, 'combined_data.mat')); % Contains 'data' structure
+load(fullfile(data_folder, 'true_p.mat'))
+load(fullfile(data_folder, 'sim_data.mat'))
 
 %% Initialize parameters
-N = length(selected_subjects); % number of subjects for simulation (from optimal_subjects)
+N = length(sim_data); % number of subjects for simulation (from optimal_subjects)
 T = 120; % number of trials per subject
-S = 10000; % number of samples for fitting
+S = 100000; % number of samples for fitting
 
 % Get parameter names from the true_P structure
 param_names = fieldnames(true_P(1));
 
-%% Create direct copy of data to sim_data to preserve structure
-% Note: sim_data should already be loaded from optimal_subjects.mat
+
 
 %% Run simulation for each subject
 for n = 1:N
     fprintf('Simulating subject %d/%d\n', n, N);
     
-    % Run simulation using the parameters from the selected optimal subjects
+    % Run simulation using the parameters from the fit subjects
     sim_input = sim_data(n);
     [~, sim_outputs] = c_2s_3a_2e_3learn_sim_version(true_P(n), sim_input, 1);
     
@@ -44,51 +45,33 @@ end
 model{1}.lik_func = @c_2s_3a_2e_3learn_sim_version;
 model{1}.name = 'c_2s_3a_2e_3learn_sim_version';
 
-% Derive parameter specifications from the true parameters of optimal subjects
-for i = 1:length(param_names)
-    param = param_names{i};
-    param_values = zeros(N, 1);
-    
-    for n = 1:N
-        param_values(n) = true_P(n).(param)(1); % Take first value
-    end
-    
-    param_mean = mean(param_values);
-    param_std = std(param_values);
-    
-    % Determine appropriate distribution and parameters based on the data
-    if param_mean > 0 && all(param_values >= 0)
-        if max(param_values) <= 1
-            % Beta distribution for parameters in [0, 1]
-            var_param = param_std^2;
-            alpha = param_mean * (param_mean * (1 - param_mean) / var_param - 1);
-            beta = (1 - param_mean) * (param_mean * (1 - param_mean) / var_param - 1);
-            
-            % Ensure positive parameters (minimum 0.1)
-            alpha = max(0.1, alpha);
-            beta = max(0.1, beta);
-            
-            model{1}.spec.(param).type = 'beta';
-            model{1}.spec.(param).val = [alpha, beta];
-        else
-            % Gamma distribution for strictly positive parameters
-            var_param = param_std^2;
-            shape = param_mean^2 / var_param;
-            scale = var_param / param_mean;
-            
-            % Ensure positive parameters
-            shape = max(0.1, shape);
-            scale = max(0.1, scale);
-            
-            model{1}.spec.(param).type = 'gamma';
-            model{1}.spec.(param).val = [shape, scale];
-        end
-    else
-        % Normal distribution for unbounded parameters
-        model{1}.spec.(param).type = 'norm';
-        model{1}.spec.(param).val = [param_mean, param_std];
-    end
-end
+model{1}.spec.beta.type = 'beta';
+model{1}.spec.beta.val = [1 1];
+
+model{1}.spec.pers.type = 'norm';
+model{1}.spec.pers.val = [0 1];
+
+model{1}.spec.epsilon1.type = 'lognorm';
+model{1}.spec.epsilon1.val = [0 1];
+
+model{1}.spec.epsilon2.type = 'lognorm';
+model{1}.spec.epsilon2.val = [0 1];
+
+model{1}.spec.alpha1.type = 'norm';
+model{1}.spec.alpha1.val = [0 1];
+
+model{1}.spec.alpha2.type = 'norm';
+model{1}.spec.alpha2.val = [0 1];
+
+model{1}.spec.alpha3.type = 'norm';
+model{1}.spec.alpha3.val = [0 1];
+
+model{1}.spec.scale1.type = 'beta';
+model{1}.spec.scale1.val = [1 1];
+
+model{1}.spec.scale3.type = 'beta';
+model{1}.spec.scale3.val = [1 1];
+
 
 model{1}.bic = nan;
 
@@ -151,58 +134,9 @@ for i = 1:length(parameters)
     end
 end
 
-%% Create visualization of parameter recovery
-figure('Position', [100, 100, 1200, 800]);
-
-% Determine number of parameters and subplot grid size
-num_params = length(parameters);
-grid_cols = min(4, num_params);
-grid_rows = ceil(num_params / grid_cols);
-
-for i = 1:length(parameters)
-    param_name = parameters{i};
-    if isfield(recovered_params, param_name)
-        % Extract true and recovered values
-        true_values = zeros(N, 1);
-        for n = 1:N
-            true_values(n) = true_P(n).(param_name)(1);
-        end
-        recovered_values = recovered_params.(param_name)';
-        
-        % Create subplot
-        subplot(grid_rows, grid_cols, i);
-        scatter(true_values, recovered_values, 50, 'filled', 'MarkerFaceAlpha', 0.7);
-        hold on;
-        
-        % Add regression line
-        coeffs = polyfit(true_values, recovered_values, 1);
-        x_range = linspace(min(true_values), max(true_values), 100);
-        y_fit = polyval(coeffs, x_range);
-        plot(x_range, y_fit, 'r-', 'LineWidth', 2);
-        
-        % Add identity line
-        plot([min(true_values), max(true_values)], [min(true_values), max(true_values)], 'k--');
-        
-        % Calculate correlation
-        corr_val = corr(true_values, recovered_values);
-        
-        % Add title and labels
-        title(sprintf('%s (r = %.4f)', param_name, corr_val));
-        xlabel('True value');
-        ylabel('Recovered value');
-        grid on;
-    end
-end
-
-% Adjust figure layout
-sgtitle('Parameter Recovery with Optimal Subjects', 'FontSize', 16);
-
-% Save the figure
-saveas(gcf, 'param_recovery_optimal_subjects.png');
-saveas(gcf, 'param_recovery_optimal_subjects.fig');
 
 %% Focus on the parameters of interest (epsilon1 and scale1)
-params_to_analyze = {'epsilon2', 'scale3'};
+params_to_analyze = {'epsilon1', 'scale1'};
 
 % Create a new figure for confusion analysis
 figure('Position', [100, 100, 800, 800]);
