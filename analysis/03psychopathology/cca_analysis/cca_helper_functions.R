@@ -152,7 +152,7 @@ prepare_cca <- function(modelst, scores, replication, separate) {
     part <- merge_data %>% dplyr::select(participant_id)
   } else {
     scaless <- modelst %>%
-      dplyr::select(matches('^(participant_id|scale|epsilon|beta|alpha|pers|elasticity_use)')) %>%
+      dplyr::select(matches('^(participant_id|scale|epsilon|beta|alpha|elasticity_use)')) %>%
       dplyr::mutate(
         scale_epsilon_elastic = ((scale1 - 0.5) * epsilon1),
         scale_epsilon_control = ((scale3 - 0.5) * epsilon2)
@@ -229,7 +229,7 @@ prepare_old_for_cca <- function(use_combined_fit = 0, apply_scale = 1, separate 
   }
   
   # Prepare data for CCA
-  result <- prepare_cca(model_old, score_df_old, 0, separate)
+  result <- prepare_cca(model_old, score_df_old, 0, separate=0)
   scoress_old_s <- result[[1]]
   togethers_old <- result[[2]]
   part <- result[[3]]

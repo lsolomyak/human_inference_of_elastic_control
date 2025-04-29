@@ -1,9 +1,8 @@
 # CCA Analysis 
-
+require(ccaPP)
 # Load required functions
 source("~/Documents/GitHub/human_inference_of_elastic_control/analysis/03psychopathology/cca_analysis/cca_helper_functions.R")
 # Load pre-processed data (update path to be relative for GitHub)
-load("/Users/levisolomyak/Documents/GitHub/human_inference_of_elastic_control/analysis/03psychopathology/processed_cca/all_cca_variables.RData")
 
 # Option to reload and reprocess data
 re_load <- 1  # Set to 1 to reprocess data, 0 to use saved results
@@ -16,23 +15,12 @@ if(re_load == 1) {
   c(scoress_old_s, togethers_old) := prepare_old_for_cca(use_combined_fit = 1, 
                                                          apply_scale = 1)
   
-  scoress <- scoress %>% dplyr::select(-participant_id)
-  scoress_old_s <- scoress_old_s %>% dplyr::select(-participant_id)
+#  scoress <- scoress %>% dplyr::select(-participant_id)
+#  scoress_old_s <- scoress_old_s %>% dplyr::select(-participant_id)
 } else {
   print('Using already processed results')
 }
 
-# Run permutation test on combined data
-# Adjust number of permutations as needed for final analysis
-perm_combined <- permTest(together_combined, scores_combined, 
-                          R = 10000, 
-                          fun = maxCorProj,
-                          permutations = NULL, 
-                          nCores = 1,
-                          cl = NULL,
-                          seed = NULL,
-                          standardize = FALSE,
-                          method = 'spearman')
 
 # Adjust direction of variables for consistency in results
 togethers_old <- -1 * togethers_old
@@ -62,6 +50,15 @@ maxCorGrid(together_combined %>% dplyr::select(-pers, -kaps),
 c(model_p, scores) := run_combined(scores_combined,
                                    together_combined,
                                    'combined')
+perm_combined <- permTest(together_combined, scores_combined, 
+                          R = 10000, 
+                          fun = maxCorProj,
+                          permutations = NULL, 
+                          nCores = 1,
+                          cl = NULL,
+                          seed = NULL,
+                          standardize = FALSE,
+                          method = 'spearman')
 
 # Function to prepare data for figure generation
 prepare_elements_for_cca_figure <- function(all_m, all_s, model_p, scores, 
@@ -119,10 +116,7 @@ prepare_elements_for_cca_figure <- function(all_m, all_s, model_p, scores,
   )
   
   # Save the results (use relative path for GitHub)
-  save(cca_bars, 
-       file = file.path('data/cca_data',
-                        paste0('result_1s_cca_materials_', Sys.Date(), '.rds')))
-  
+ 
   return(cca_bars)
 }
 
@@ -174,8 +168,7 @@ generate_cca_figure <- function(cca_bars) {
   
   # Define labels for model parameters
   feature_labels <- c(
-    "scale1" = expression(lambda[elasticity~bias]),
-    "epsilon1" = expression(epsilon[elasticity~concentration]),
+    "scale_epsilon_elastic" = expression(gamma[elasticity]),
     "scale_epsilon_control" = expression(gamma[control]),
     "beta" = expression(beta),
     "alpha1" = expression(alpha[1]),
@@ -278,14 +271,9 @@ generate_cca_figure <- function(cca_bars) {
                                  widths = c(1.25, 1))
   
   # Save plots to file (use relative path for GitHub)
-  output_dir <- 'figures/cca/'
-  # Create directory if it doesn't exist
-  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-  
-  png(paste0(output_dir, 'models_cca_plot.png'), 
-      width = 14, height = 9, units = "in", res = 500)
-  print(combined_cca_plot)
-  dev.off()
+
+    # Create directory if it doesn't exist
+
   
   # Save results including plots
   fig_cca_1 <- list(
@@ -295,8 +283,24 @@ generate_cca_figure <- function(cca_bars) {
     cca_bars = cca_bars
   )
   
-  save(fig_cca_1, 
-       file = 'data/cca_data/result_1_cca_plot_including_plot_itself.rds')
+  # save(fig_cca_1, 
+  #      file = 'data/cca_data/result_1_cca_plot_including_plot_itself.rds')
+  # 
+  args    <- commandArgs(trailingOnly = FALSE)
+  fileArg <- grep("--file=", args, value = TRUE)
+  scriptDir <- if (length(fileArg)) {
+    dirname(normalizePath(sub("--file=", "", fileArg)))
+  } else {
+    getwd()
+  }
+  output_dir <- file.path(normalizePath(file.path(scriptDir, "..")), "figures", "cca")
+  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  # then replace your png() call with:
+  png(file.path(output_dir, "models_cca_plot.png"),
+      width = 14, height = 9, units = "in", res = 500)
+  print(combined_cca_plot)
+  dev.off()
   
   print('Plots generated and saved successfully')
   return(fig_cca_1)
