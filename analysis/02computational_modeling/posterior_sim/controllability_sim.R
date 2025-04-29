@@ -67,7 +67,7 @@ sim_nc_3s_3a_3e_perseveration <- function(
   control_learning <- data.frame(trials = seq(0, num_trials - 1))
   
   # Extract model parameters
-  beta <- params$beta + 0.05
+  beta <- params$beta 
   scale1 <- params$scale1
   scale2 <- params$scale2
   scale3 <- params$scale3

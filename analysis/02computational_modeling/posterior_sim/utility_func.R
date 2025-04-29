@@ -249,8 +249,3 @@ generate_ss <- function(length = 30) {
   
   return(vector)
 }
-
-# Create output directory for figures
-dir <- file.path("~/Desktop/Documents/Control_studies/Control_studies/scripts/analyses/02_modeling/figures", 
-                 paste0(Sys.Date()))
-if (!dir.exists(dir)) dir.create(dir)
