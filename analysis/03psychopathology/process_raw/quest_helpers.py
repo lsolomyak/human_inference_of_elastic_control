@@ -1,17 +1,13 @@
 """
-Canonical Correlation Analysis (CCA) for Psychological Questionnaires
+Canonical Correlation Analysis (CCA) for Psychological Questionnaires Prep
 
 This module implements functions for preprocessing questionnaire data, 
-performing canonical correlation analysis between questionnaire scores and 
-behavioral measures, and visualizing the results.
 
 The main functionalities include:
 - Data preprocessing and cleaning
 - Calculation of questionnaire scores
-- Canonical Correlation Analysis with permutation testing
-- Visualization of canonical loadings and correlations
 
-Author: [Your Name]
+Author: Levi Solomyak
 Date: March 2025
 """
 
@@ -21,6 +17,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import re
 import os
+from pathlib import Path
+import sys
+
 from scipy.stats import zscore, spearmanr
 from sklearn.preprocessing import StandardScaler
 from sklearn.cross_decomposition import CCA
@@ -478,25 +477,24 @@ def plot_cca_loadings(X_loadings, Y_loadings, X_cols, Y_cols, corrs, save_path=N
 
 # Example usage:
 if __name__ == "__main__":
+    project_root = Path(__file__).resolve().parents[3]
+
+    # CSV file path
+    csv_path = project_root / 'data' / 'questionnaires' / 'raw' / 'part_01.csv'
+
+    # Helper functions path
+    helper_path = project_root / 'analysis' / '03psychopathology' / 'process_raw'
+    sys.path.append(str(helper_path))
+
     # Load data
-    # df_raw = pd.read_csv("path/to/questionnaire_data.csv")
+    df_raw = pd.read_csv(csv_path)
     
     # Process data
-    # df_processed = pre_cca(df_raw)
-    # scores = get_scores(df_processed)
+    scores = get_scores(df_raw)
     
     # Example of filtering out inattentive responders
-    # scores_filtered = calculate_raw_sd_across_measures_no_groupby(df_raw, scores)
+    scores_filtered = calculate_raw_sd_across_measures_no_groupby(df_raw, scores)
     
-    # Prepare data for CCA
-    # X_quest, Y_total = prepare_holy_cca(scores, behavioral_data)
-    
-    # Run CCA
-    # corrs, X_loadings, Y_loadings, X_scores, Y_scores = perform_cca(X_quest, Y_total, n_components=2)
-    
-    # Visualize loadings
-    # plot_cca_loadings(X_loadings, Y_loadings, X_quest.columns, Y_total.columns, corrs, 
-    #                  save_path="./results/cca_results")
     
     # Calculate and visualize correlations between variables
     # plot_correlations(questionnaire_scores, behavioral_measures, significant=True)
