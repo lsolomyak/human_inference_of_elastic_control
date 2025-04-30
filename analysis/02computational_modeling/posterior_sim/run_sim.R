@@ -1,5 +1,24 @@
 if (!require(here)) install.packages("here")
 library(here)
+library(rstudioapi)
+
+# Get the directory where the script is located
+base_dir <- dirname(rstudioapi::getSourceEditorContext()$path)
+
+# Construct the full path to the script using file.path()
+script_path <- file.path(base_dir,"run_sim.R")
+
+# Check if the file exists before sourcing
+if (file.exists(script_path)) {
+  source(script_path)
+  print('sourced properly')
+} else {
+  stop("The file does not exist at the specified path.")
+}
+
+setwd(base_dir)
+
+
 data_f <- data_combined %>% group_by(participant) %>% distinct(c_elastic,c_inelastic) %>% ungroup()
 data_f <- do.call("rbind", replicate(20, data_f, simplify = FALSE))
 
