@@ -1,6 +1,5 @@
-# Human Inference of Elastic Control - CCA and Permutation Tests
+# CCA and psychopathology
 
-This repository contains the scripts and data for running the Canonical Correlation Analysis (CCA), permutation tests, and figure generation for a project on human inference of elastic control. The scripts are designed to process questionnaire data and perform statistical analyses related to decision-making and emotional regulation.
 
 ### Key Functions
 
