@@ -24,7 +24,7 @@ Both the initial and replication data are located in the `modeling_data/` folder
 All likelihood functions are located in the `lik_functions/` folder. These functions are used for model fitting and are automatically called by `execute_scripts.m`.
 
 ## Posterior/simulation analysis can be run in the posterior_sim folder by running in R 
-```un_sim.R```
+```run_sim.R```
 
 ## Additional Files
 
