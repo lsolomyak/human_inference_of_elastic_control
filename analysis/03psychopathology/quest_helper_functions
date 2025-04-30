@@ -11,8 +11,6 @@ The main functionalities include:
 - Canonical Correlation Analysis with permutation testing
 - Visualization of canonical loadings and correlations
 
-Author: [Your Name]
-Date: March 2025
 """
 
 import pandas as pd
