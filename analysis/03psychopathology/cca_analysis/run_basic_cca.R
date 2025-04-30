@@ -4,9 +4,6 @@ require(ccaPP)
 source("~/Documents/GitHub/human_inference_of_elastic_control/analysis/03psychopathology/cca_analysis/cca_helper_functions.R")
 # Load pre-processed data (update path to be relative for GitHub)
 
-# Option to reload and reprocess data
-re_load <- 1  # Set to 1 to reprocess data, 0 to use saved results
-if(re_load == 1) {
   # Load and prepare data
   c(scoress, togethers) := prepare_new_for_cca(use_saved = 0, 
                                                use_combined_fit = 1, 
@@ -15,11 +12,9 @@ if(re_load == 1) {
   c(scoress_old_s, togethers_old) := prepare_old_for_cca(use_combined_fit = 1, 
                                                          apply_scale = 1)
   
-#  scoress <- scoress %>% dplyr::select(-participant_id)
-#  scoress_old_s <- scoress_old_s %>% dplyr::select(-participant_id)
-} else {
-  print('Using already processed results')
-}
+  scoress <- scoress %>% dplyr::select(-participant_id)
+  scoress_old_s <- scoress_old_s %>% dplyr::select(-participant_id)
+
 
 
 # Adjust direction of variables for consistency in results
@@ -46,7 +41,7 @@ maxCorGrid(together_combined %>% dplyr::select(-pers, -kaps),
            standardize = FALSE,
            method = 'spearman')
 
-# Run combined CCA analyses with different variable selections
+# Run combined CCA analyses 
 c(model_p, scores) := run_combined(scores_combined,
                                    together_combined,
                                    'combined')
@@ -283,9 +278,6 @@ generate_cca_figure <- function(cca_bars) {
     cca_bars = cca_bars
   )
   
-  # save(fig_cca_1, 
-  #      file = 'data/cca_data/result_1_cca_plot_including_plot_itself.rds')
-  # 
   args    <- commandArgs(trailingOnly = FALSE)
   fileArg <- grep("--file=", args, value = TRUE)
   scriptDir <- if (length(fileArg)) {
