@@ -34,11 +34,11 @@ generate_sim_data <- function(data_f,n_agents=250, full=0,elasticity_model=2){
     params <- read_csv('/Users/levisolomyak/Documents/GitHub/human_inference_of_elastic_control/analysis/02computational_modeling/posterior_sim/fits_for_sim/e_c.csv')
     print('lets do')
   } else if(elasticity_model==0) {
-    params <- read_csv('/Users/levisolomyak/Documents/GitHub/human_inference_of_elastic_control/analysis/02computational_modeling/posterior_sim/fits_for_sim/n_c.csv')
+    params <- read_csv('./fits_for_sim/n_c.csv')
 
     # Extract the first row per participant
   }else if(elasticity_model==3){
-    params=read_csv('/Users/levisolomyak/Documents/GitHub/human_inference_of_elastic_control/analysis/02computational_modeling/posterior_sim/fits_for_sim/e_c_star.csv')
+    params=read_csv('./fits_for_sim/e_c_star.csv')
     print('here')
   
 
