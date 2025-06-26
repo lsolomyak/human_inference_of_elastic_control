@@ -11,6 +11,7 @@ library(data.table)
 ROOT_DIR <- "/Users/levisolomyak/Documents/GitHub/human_inference_of_elastic_control"
 DATA_DIR <- file.path(ROOT_DIR, "analysis/02computational_modeling/posterior_sim/fits_for_sim")
 RESULTS_DIR <- file.path(ROOT_DIR, "results/figures")
+setwd(file.path(ROOT_DIR))
 #' Calculate optimal actions and expected values
 #'
 #' @param data Dataframe with behavioral data
@@ -47,7 +48,6 @@ return_combined_ev <- function(data, pre_opt = 1) {
 # This should be implemented based on the actual function definition
 
 # Create results directory if it doesn't exist
-dir.create(RESULTS_DIR, recursive = TRUE, showWarnings = FALSE)
 
 #' Extract composite scores from CCA analysis
 #'
@@ -152,7 +152,7 @@ prepare_cca <- function(modelst, scores, replication, separate) {
     part <- merge_data %>% dplyr::select(participant_id)
   } else {
     scaless <- modelst %>%
-      dplyr::select(matches('^(participant_id|scale|epsilon|beta|alpha|pers|elasticity_use)')) %>%
+      dplyr::select(matches('^(participant_id|scale|epsilon|beta|alpha|elasticity_use)')) %>%
       dplyr::mutate(
         scale_epsilon_elastic = ((scale1 - 0.5) * epsilon1),
         scale_epsilon_control = ((scale3 - 0.5) * epsilon2)
@@ -198,8 +198,8 @@ prepare_old_for_cca <- function(use_combined_fit = 0, apply_scale = 1, separate 
   
   # Load scores
   library(here)
-  score_old <- read.csv(here::here('data', 'questionnaires', 'processed', 'scores_group1_31_3_24.csv'))
-  score_old <- score_old[, -1]  # Remove first column (likely row numbers)
+  score_old <- read.csv(file.path(ROOT_DIR ,'data', 'questionnaires', 'processed', 'scores_group1_31_3_24.csv'))
+  score_old <- score_old[, -1]  
   
   if(apply_scale == 0) {
     score_df_old <- score_old %>% 
@@ -229,7 +229,7 @@ prepare_old_for_cca <- function(use_combined_fit = 0, apply_scale = 1, separate 
   }
   
   # Prepare data for CCA
-  result <- prepare_cca(model_old, score_df_old, 0, separate)
+  result <- prepare_cca(model_old, score_df_old, 0, separate=0)
   scoress_old_s <- result[[1]]
   togethers_old <- result[[2]]
   part <- result[[3]]
@@ -269,7 +269,7 @@ prepare_new_for_cca <- function(use_saved = 0, use_combined_fit = 0, dont_apply_
   
   # Load and prepare scores
   if(use_saved) {
-    scores_df <- read.csv(here::here('data', 'questionnaires', 'processed', 'scores_group1_31_3_24.csv'))
+    scores_df <- read.csv(file.path(ROOT_DIR,'data', 'questionnaires', 'processed', 'scores_group1_31_3_24.csv'))
     scoress_df <- scoress_df %>% distinct(id, .keep_all = TRUE)
     result <- prepare_cca(model1, scoress_df, 1, 0)
     scoress <- result[[1]]
@@ -277,7 +277,7 @@ prepare_new_for_cca <- function(use_saved = 0, use_combined_fit = 0, dont_apply_
     part <- result[[3]]
   } else {
     #scores <- read.csv('data/questionnaires/processed/scores_group2_31_3_24.csv')
-    scores <-read.csv(here::here('data', 'questionnaires', 'processed', 'scores_group2_31_3_24.csv'))
+    scores <-read.csv(file.path(ROOT_DIR,'data', 'questionnaires', 'processed', 'scores_group2_31_3_24.csv'))
     
     scores <- scores[, -1]
     scores$participant_id <- scores$id

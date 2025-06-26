@@ -8,41 +8,41 @@ library(ggplot2)
 library(ggpubr)
 library(ccaPP)
 library(ggrepel)
-
+library(here)
 # Load helper functions
-source("R/cca_functions.R")
 
-# ============================================================================
-# DATA LOADING
-# ============================================================================
+require(ccaPP)
+# Load required functions
+# at top:
+source(here::here("analysis","03psychopathology","cca_analysis","cca_helper_functions.R"))
+
+
+
+
+
+# Option to reload and reprocess data
+  # Load and prepare data
+  c(scoress, togethers) := prepare_new_for_cca(use_saved = 0, 
+                                               use_combined_fit = 1, 
+                                               dont_apply_scale = 0)
+  
+  c(scoress_old_s, togethers_old) := prepare_old_for_cca(use_combined_fit = 1, 
+                                                         apply_scale = 1)
+  
+    scoress <- scoress %>% dplyr::select(-participant_id)
+    scoress_old_s <- scoress_old_s %>% dplyr::select(-participant_id)
+
 
 # Set seed for reproducibility
 set.seed(342)
 
 # Option to use saved permutation results
-use_previous <- 1  # Set to 0 to run new permutation tests
 
-if(use_previous == 1) {
-  # Load previously calculated permutation results
-  cat("Loading previously calculated permutation results...\n")
-  load("data/cca_data/perm_test_results.RData")
-  
-  # Extract permutation results
-  perm_old <- perm_test_results$perm_old
-  perm_new <- perm_test_results$perm_new
-  perm_elastic_new <- perm_test_results$elastic_perm_new
-  perm_elastic_old <- perm_test_results$elastic_perm_old
-  combined_perm_elastic <- perm_test_results$combined_perm_elastic
-  combined_perm_basic <- perm_test_results$perm_combined
-} else {
   # Load processed data for new permutation tests
-  cat("Loading data for new permutation tests...\n")
-  load("data/cca_data/processed_cca_data.RData")
-  
+
   # Run permutation tests for original dataset
-  cat("Running permutation tests for original dataset...\n")
   perm_old <- permTest(
-    togethers_old %>% dplyr::select(-pers, -kaps),
+    togethers_old,
     scoress_old_s, 
     R = 10000,
     fun = maxCorGrid,
@@ -148,7 +148,7 @@ if(use_previous == 1) {
   )
   
   save(perm_test_results, file = "data/cca_data/perm_test_results.RData")
-}
+
 
 # ============================================================================
 # VISUALIZATION OF PERMUTATION RESULTS
@@ -179,7 +179,6 @@ data_to_plot_basic <- tibble(
 cat("Creating basic permutation plot...\n")
 basic_plot <- plot_perm(data_to_plot_basic, perms)
 
-# Create output directory if it doesn't exist
 dir.create("figures/permutation", recursive = TRUE, showWarnings = FALSE)
 
 # Save basic permutation plot

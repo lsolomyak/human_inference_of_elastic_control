@@ -1,13 +1,18 @@
 # CCA Analysis 
-
+require(ccaPP)
 # Load required functions
-source("~/Documents/GitHub/human_inference_of_elastic_control/analysis/03psychopathology/cca_analysis/cca_helper_functions.R")
-# Load pre-processed data (update path to be relative for GitHub)
-load("/Users/levisolomyak/Documents/GitHub/human_inference_of_elastic_control/analysis/03psychopathology/processed_cca/all_cca_variables.RData")
+base_dir <- dirname(rstudioapi::getSourceEditorContext()$path)
 
-# Option to reload and reprocess data
-re_load <- 1  # Set to 1 to reprocess data, 0 to use saved results
-if(re_load == 1) {
+# Construct the full path to the script using file.path()
+script_path <- file.path(base_dir,"cca_helper_functions.R")
+# Check if the file exists before sourcing
+if (file.exists(script_path)) {
+  source(script_path)
+  print('sourced properly')
+} else {
+  stop("The file does not exist at the specified path.")
+}
+# Load pre-processed data (update path to be relative for GitHub)
   # Load and prepare data
   c(scoress, togethers) := prepare_new_for_cca(use_saved = 0, 
                                                use_combined_fit = 1, 
@@ -18,21 +23,8 @@ if(re_load == 1) {
   
   scoress <- scoress %>% dplyr::select(-participant_id)
   scoress_old_s <- scoress_old_s %>% dplyr::select(-participant_id)
-} else {
-  print('Using already processed results')
-}
 
-# Run permutation test on combined data
-# Adjust number of permutations as needed for final analysis
-perm_combined <- permTest(together_combined, scores_combined, 
-                          R = 10000, 
-                          fun = maxCorProj,
-                          permutations = NULL, 
-                          nCores = 1,
-                          cl = NULL,
-                          seed = NULL,
-                          standardize = FALSE,
-                          method = 'spearman')
+
 
 # Adjust direction of variables for consistency in results
 togethers_old <- -1 * togethers_old
@@ -58,10 +50,19 @@ maxCorGrid(together_combined %>% dplyr::select(-pers, -kaps),
            standardize = FALSE,
            method = 'spearman')
 
-# Run combined CCA analyses with different variable selections
+# Run combined CCA analyses 
 c(model_p, scores) := run_combined(scores_combined,
                                    together_combined,
                                    'combined')
+perm_combined <- permTest(together_combined, scores_combined, 
+                          R = 10000, 
+                          fun = maxCorProj,
+                          permutations = NULL, 
+                          nCores = 1,
+                          cl = NULL,
+                          seed = NULL,
+                          standardize = FALSE,
+                          method = 'spearman')
 
 # Function to prepare data for figure generation
 prepare_elements_for_cca_figure <- function(all_m, all_s, model_p, scores, 
@@ -119,10 +120,7 @@ prepare_elements_for_cca_figure <- function(all_m, all_s, model_p, scores,
   )
   
   # Save the results (use relative path for GitHub)
-  save(cca_bars, 
-       file = file.path('data/cca_data',
-                        paste0('result_1s_cca_materials_', Sys.Date(), '.rds')))
-  
+ 
   return(cca_bars)
 }
 
@@ -174,8 +172,7 @@ generate_cca_figure <- function(cca_bars) {
   
   # Define labels for model parameters
   feature_labels <- c(
-    "scale1" = expression(lambda[elasticity~bias]),
-    "epsilon1" = expression(epsilon[elasticity~concentration]),
+    "scale_epsilon_elastic" = expression(gamma[elasticity]),
     "scale_epsilon_control" = expression(gamma[control]),
     "beta" = expression(beta),
     "alpha1" = expression(alpha[1]),
@@ -278,14 +275,9 @@ generate_cca_figure <- function(cca_bars) {
                                  widths = c(1.25, 1))
   
   # Save plots to file (use relative path for GitHub)
-  output_dir <- 'figures/cca/'
-  # Create directory if it doesn't exist
-  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
-  
-  png(paste0(output_dir, 'models_cca_plot.png'), 
-      width = 14, height = 9, units = "in", res = 500)
-  print(combined_cca_plot)
-  dev.off()
+
+    # Create directory if it doesn't exist
+
   
   # Save results including plots
   fig_cca_1 <- list(
@@ -295,8 +287,21 @@ generate_cca_figure <- function(cca_bars) {
     cca_bars = cca_bars
   )
   
-  save(fig_cca_1, 
-       file = 'data/cca_data/result_1_cca_plot_including_plot_itself.rds')
+  args    <- commandArgs(trailingOnly = FALSE)
+  fileArg <- grep("--file=", args, value = TRUE)
+  scriptDir <- if (length(fileArg)) {
+    dirname(normalizePath(sub("--file=", "", fileArg)))
+  } else {
+    getwd()
+  }
+  output_dir <- file.path(normalizePath(file.path(scriptDir, "..")), "figures", "cca")
+  dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  # then replace your png() call with:
+  png(file.path(output_dir, "models_cca_plot.png"),
+      width = 14, height = 9, units = "in", res = 500)
+  print(combined_cca_plot)
+  dev.off()
   
   print('Plots generated and saved successfully')
   return(fig_cca_1)
@@ -304,3 +309,46 @@ generate_cca_figure <- function(cca_bars) {
 
 # Generate the figure
 fig <- generate_cca_figure(cca_bars)
+
+# now we prepare figure 6c
+ccas_combined_fit <- ccaGrid(together_combined ,scores_combined , nCores=1,cl=NULL,seed=NULL,standardize = FALSE,method='spearman')
+
+color_palette <- scale_color_gradient("a" = "navyblue", 'b' = "steelblue")
+
+color_palette <- scale_color_manual(values = c('a' = alpha("navyblue", 0.8), 'b' = alpha("steelblue", 0.8)),
+                                    name='',
+                                    breaks = c('a', 'b'),
+                                    labels = c("Group 1", "Group 2"))
+
+
+
+
+correlation_label <- paste0("r =", .33, "\n", "p = <.001")
+
+composite_scoress <- ggplot(data = m_combined, aes(x = Scores.score, y = Model)) +
+  geom_point(aes(color = factor(dataset))) +  # Add points with custom colors and labels
+  scale_y_continuous(limits = c(-3.1, 2.85)) +
+  
+  geom_smooth(method = "lm", col = "black") +  # Add best fit line for all data
+  geom_text(x = max(m_combined$Scores.score) - 0.1, y = -3.2, label = correlation_label, hjust = 1, vjust = 0, family = "Arial", size = 13) +
+  labs(x = 'Psychopathology\n(composite score)', y = 'Model Parameters\n(composite score)') +  # Add title with correlation and x-label
+  color_palette +
+  spec_theme_df + 
+  theme(  # Adjust legend position
+    legend.text = element_text(size = 30),  # Increase legend text size
+    legend.title = element_text(size = 20),
+    axis.title = element_text(size = 34,face = "plain"),
+    axis.text=element_text(size = 30),
+    legend.position = c(1, 1.05),
+    plot.margin = margin(t = 10, r = 10, b = 50, l = 50, unit = "pt"),  # Adjust margins for x-label
+    plot.background = element_rect(fill = "white", color = NA)) +  # Set plot background color to white
+  coord_cartesian(clip = "off") 
+dir='/Users/levisolomyak/Desktop/Documents/Control_studies/Control_studies/scripts/analyses/01model_free/for_paper/figures/'      
+png(paste0(dir,'composite_test.png'), width = 8, height = 10, units = "in",res=500)
+print(composite_scoress)
+dev.off()
+
+composite_figure_list <- list(
+  figure=composite_scoress,
+  figure_data=m_combined
+)

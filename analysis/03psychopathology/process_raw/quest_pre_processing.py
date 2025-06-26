@@ -1,17 +1,13 @@
 """
-Canonical Correlation Analysis (CCA) for Psychological Questionnaires
+Canonical Correlation Analysis (CCA) for Psychological Questionnaires Prep
 
 This module implements functions for preprocessing questionnaire data, 
-performing canonical correlation analysis between questionnaire scores and 
-behavioral measures, and visualizing the results.
 
 The main functionalities include:
 - Data preprocessing and cleaning
 - Calculation of questionnaire scores
-- Canonical Correlation Analysis with permutation testing
-- Visualization of canonical loadings and correlations
 
-Author: [Your Name]
+Author: Levi Solomyak
 Date: March 2025
 """
 
@@ -21,6 +17,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import re
 import os
+from pathlib import Path
+import sys
+
 from scipy.stats import zscore, spearmanr
 from sklearn.preprocessing import StandardScaler
 from sklearn.cross_decomposition import CCA
@@ -137,15 +136,14 @@ def rename_columns(column_name):
     return column_name
 
 
-def perm_test_canonical_correlation(X, Y, n_perm=1000, n_components=1):
+def perform_cca(X, Y, n_components=1):
     """
-    Perform permutation testing for Canonical Correlation Analysis.
+    Perform Canonical Correlation Analysis without permutation testing.
     
     This function:
-    1. Fits a CCA model to the original data
-    2. Calculates the true canonical correlation
-    3. Runs permutation tests by shuffling observations
-    4. Computes p-value based on permutation distribution
+    1. Fits a CCA model to the data
+    2. Calculates canonical correlations and loadings
+    3. Returns results for interpretation
     
     Parameters:
     -----------
@@ -153,22 +151,20 @@ def perm_test_canonical_correlation(X, Y, n_perm=1000, n_components=1):
         First set of variables (e.g., questionnaire data)
     Y : pandas.DataFrame
         Second set of variables (e.g., behavioral measures)
-    n_perm : int, optional (default=1000)
-        Number of permutations to perform
     n_components : int, optional (default=1)
         Number of canonical components to extract
         
     Returns:
     --------
-    p_value : float
-        Permutation-based p-value
+    corrs : list
+        Canonical correlations
     X_loadings : numpy.ndarray
         Loadings for X variables
     Y_loadings : numpy.ndarray
         Loadings for Y variables
-    X_c_real : numpy.ndarray
+    X_scores : numpy.ndarray
         Canonical scores for X variables
-    Y_c_real : numpy.ndarray
+    Y_scores : numpy.ndarray
         Canonical scores for Y variables
     """
     # Initialize CCA model
@@ -176,41 +172,22 @@ def perm_test_canonical_correlation(X, Y, n_perm=1000, n_components=1):
     print('Y variables in CCA:', Y.columns)
     print('X variables in CCA:', X.columns)
     
-    # Fit CCA to original data
+    # Fit CCA to data
     cca.fit(X, Y)
-    X_c_real, Y_c_real = cca.transform(X, Y)
+    X_scores, Y_scores = cca.transform(X, Y)
     
     # Get loadings
     X_loadings = cca.x_loadings_
     Y_loadings = cca.y_loadings_
     
-    # Calculate true canonical correlation (using first component by default)
-    true_corr = np.corrcoef(X_c_real.T, Y_c_real.T)[0, 1]
-    print(f"True canonical correlation: {true_corr}")
+    # Calculate canonical correlations
+    corrs = []
+    for i in range(n_components):
+        corr = np.corrcoef(X_scores[:, i], Y_scores[:, i])[0, 1]
+        corrs.append(corr)
+        print(f"Canonical correlation {i+1}: {corr:.4f}")
     
-    # Permutation testing
-    perm_corrs = []
-    for i in range(n_perm):
-        # Permute the rows (subjects) for X
-        perm_idx_X = np.random.permutation(X.shape[0])
-        
-        # Handle permutation for pandas DataFrame or numpy ndarray
-        if isinstance(X, pd.DataFrame):
-            X_perm = X.iloc[perm_idx_X].reset_index(drop=True)
-        elif isinstance(X, np.ndarray):
-            X_perm = X[perm_idx_X, :]
-        
-        # Fit CCA to permuted data
-        cca.fit(X_perm, Y)
-        X_c, Y_c = cca.transform(X_perm, Y)
-        
-        # Calculate permuted correlation
-        perm_corr = np.corrcoef(X_c.T, Y_c.T)[0, 1]
-        perm_corrs.append(perm_corr)
-    
-    # Calculate p-value
-    p_value = np.mean(np.array(perm_corrs) >= true_corr)
-    return p_value, X_loadings, Y_loadings, X_c_real, Y_c_real
+    return corrs, X_loadings, Y_loadings, X_scores, Y_scores
 
 
 def prepare_holy_cca(cca_df, result_total, replication=True):
@@ -312,43 +289,7 @@ def get_scores(df_clean):
     return score_df
 
 
-def get_three_factors(three_factor, score_df):
-    """
-    Merge questionnaire scores with three-factor analysis data.
-    
-    Parameters:
-    -----------
-    three_factor : pandas.DataFrame
-        DataFrame containing three-factor analysis results
-    score_df : pandas.DataFrame
-        DataFrame containing questionnaire scores
-        
-    Returns:
-    --------
-    score_df_three_factor : pandas.DataFrame
-        Merged DataFrame with three-factor data
-    """
-    # Rename columns for consistency
-    three_factor.rename(columns={'qnid': 'participant', 'StartDate': 'date'}, inplace=True)
-    
-    # Format date and participant ID columns
-    three_factor['date'] = three_factor['date'].astype(str).str.split(' ').str[0]
-    three_factor['participant'] = three_factor['participant'].astype('int64')
-    score_df['participant'] = score_df['participant'].astype('int64')
-    
-    # Merge datasets
-    score_df_three_factor = pd.merge(score_df, three_factor, on=['participant', 'date'], how='inner')
-    
-    # Define keywords for columns to drop
-    keywords = ['SDS', 'STAI', 'LSAS', 'AUDIT', 'EAT', 'AES', 'OCI', 'BIS']
-    
-    # Drop specific questionnaire columns
-    score_df_three_factor = score_df_three_factor.drop(
-        [col for col in score_df_three_factor.columns if any(keyword in col for keyword in keywords)], 
-        axis=1
-    )
-    
-    return score_df_three_factor
+
 
 
 def plot_correlations(final_df, model_1s, significant=True):
@@ -425,70 +366,7 @@ def plot_correlations(final_df, model_1s, significant=True):
         print("No significant correlations found.")
 
 
-def run_CCA_list(questionaire_dfs, behavioral_measures):
-    """
-    Run Canonical Correlation Analysis for multiple questionnaire-behavior pairs.
-    
-    Parameters:
-    -----------
-    questionaire_dfs : list of pandas.DataFrame
-        List of questionnaire dataframes
-    behavioral_measures : list
-        List of behavioral measure dataframes or column lists
-        
-    Returns:
-    --------
-    results : dict
-        Dictionary containing CCA results for each questionnaire-behavior pair
-    """
-    results = {}
-    
-    # Loop through all questionnaire and behavioral measure combinations
-    for b_df in questionaire_dfs:
-        for measure in behavioral_measures:
-            # Define a unique key for each combination
-            if isinstance(measure, pd.DataFrame):
-                key = f"{b_df.name}_{measure.name}"
-                
-                # Drop date column if present
-                if 'date' in measure.columns:
-                    measure = measure.drop('date', axis=1)
-                
-                Y_total = measure
-                
-            elif isinstance(measure, list):
-                key = f"{b_df.name}_{measure[-1]}"
-                continue  # Skip list case
-            else:
-                continue  # Skip if measure is neither DataFrame nor list
-            
-            # Convert participant columns to integers for consistent merging
-            if 'participant' in b_df.columns:
-                b_df['participant'] = b_df['participant'].astype(int)
-            if 'participant' in Y_total.columns:
-                Y_total['participant'] = Y_total['participant'].astype(int)
-            
-            # Prepare data for CCA
-            X_quest, Y_total, participant_left = prepare_holy_cca(b_df, Y_total, final_all, (15, 30))
-            
-            # Run permutation test
-            p_value, X_cs, Y_cs, X_real, Y_real = perm_test_canonical_correlation(X_quest, Y_total, 500, 4)
-            
-            # Store results
-            results[key] = {
-                'p_value': p_value, 
-                'X_cs': X_cs, 
-                'Y_cs': Y_cs, 
-                'X_real': X_real, 
-                'Y_real': Y_real,
-                'X_quest': X_quest, 
-                'Y_total': Y_total,
-                'participant': participant_left
-            }
-            
-            print(f"p-value for {key}: {p_value}")
-            
-    return results
+
 
 
 def calculate_raw_sd_across_measures_no_groupby(df, score_df):
@@ -542,92 +420,83 @@ def calculate_raw_sd_across_measures_no_groupby(df, score_df):
     return score_df
 
 
-def visualize_cca(score_df, scales_only, replication=True, name="cca_result"):
+def plot_cca_loadings(X_loadings, Y_loadings, X_cols, Y_cols, corrs, save_path=None):
     """
-    Visualize Canonical Correlation Analysis results.
+    Plot canonical correlation loadings.
     
     Parameters:
     -----------
-    score_df : pandas.DataFrame
-        DataFrame containing questionnaire scores
-    scales_only : pandas.DataFrame
-        DataFrame containing scale data
-    replication : bool, optional (default=True)
-        Whether this is a replication study
-    name : str, optional (default="cca_result")
-        Name for the output file
+    X_loadings : numpy.ndarray
+        Loadings for X variables
+    Y_loadings : numpy.ndarray
+        Loadings for Y variables
+    X_cols : list
+        Names of X variables
+    Y_cols : list
+        Names of Y variables
+    corrs : list
+        Canonical correlations
+    save_path : str, optional
+        Path to save the plot, if None, the plot is displayed
         
     Returns:
     --------
     None
     """
-    # Prepare data for CCA
-    X_quest, Y_total = prepare_holy_cca(scales_only, score_df, replication)
-    
-    print('Running permutation test')
-    
-    # Run CCA with permutation testing
-    p_value, X_cs, Y_cs, X_real, Y_real = perm_test_canonical_correlation(X_quest, Y_total, 500)
-    
-    # Store results
-    result = {
-        'p_value': p_value, 
-        'X_cs': X_cs, 
-        'Y_cs': Y_cs, 
-        'X_real': X_real, 
-        'Y_real': Y_real,
-        'X_quest': X_quest, 
-        'Y_total': Y_total
-    }
-    
-    print('Plotting results')
-    
-    # Extract data for plotting
-    p_value = result['p_value']
-    X_cs = result['X_cs']  # Canonical loadings for X
-    Y_cs = result['Y_cs']  # Canonical loadings for Y
-    X_col_names = X_quest.columns
-    Y_col_names = Y_total.columns
+    # Determine number of components to plot
+    n_components = min(X_loadings.shape[1], Y_loadings.shape[1])
     
     # Plot loadings for each component
-    for i in range(X_cs.shape[1]):
+    for i in range(n_components):
         fig, axes = plt.subplots(1, 2, figsize=(15, 6))
         
         # Plot X loadings
-        axes[0].bar(X_col_names, X_cs[:, i])
-        axes[0].set_title(f'p-value: {p_value:.3f}')
-        axes[0].set_xticks(np.arange(len(X_col_names)))
-        axes[0].set_xticklabels(X_col_names, rotation=90, ha='right')
+        axes[0].bar(X_cols, X_loadings[:, i])
+        axes[0].set_title(f'X Loadings - Canonical Component {i+1}')
+        axes[0].set_xticks(np.arange(len(X_cols)))
+        axes[0].set_xticklabels(X_cols, rotation=90, ha='right')
         
         # Plot Y loadings
-        axes[1].bar(Y_col_names, Y_cs[:, i])
-        axes[1].set_xticks(np.arange(len(Y_col_names)))
-        axes[1].set_xticklabels(Y_col_names, rotation=90, ha='right')
+        axes[1].bar(Y_cols, Y_loadings[:, i])
+        axes[1].set_title(f'Y Loadings - Canonical Component {i+1}')
+        axes[1].set_xticks(np.arange(len(Y_cols)))
+        axes[1].set_xticklabels(Y_cols, rotation=90, ha='right')
         
-        # Save plot to file
-        save_dir = f"./results/{'s_' + str(replication)}"
-        os.makedirs(save_dir, exist_ok=True)
+        plt.suptitle(f'Canonical Correlation: {corrs[i]:.4f}', fontsize=16)
         plt.tight_layout()
-        save_path = f"{save_dir}/{name}_combined_plot.png"
-        plt.savefig(save_path)
         
+        # Save or display the plot
+        if save_path is not None:
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            plt.savefig(f"{save_path}_component_{i+1}.png")
+        else:
+            plt.show()
+            
     return
 
 
 # Example usage:
 if __name__ == "__main__":
+    project_root = Path(__file__).resolve().parents[3]
+
+    # CSV file path
+    csv_path = project_root / 'data' / 'questionnaires' / 'raw' / 'part_01.csv'
+
+    # Helper functions path
+    helper_path = project_root / 'analysis' / '03psychopathology' / 'process_raw'
+    sys.path.append(str(helper_path))
+
     # Load data
-    # df_raw = pd.read_csv("path/to/questionnaire_data.csv")
+    df_raw = pd.read_csv(csv_path)
     
     # Process data
-    # df_processed = pre_cca(df_raw)
-    # scores = get_scores(df_processed)
+    scores = get_scores(df_raw)
     
-    # Run CCA
-    # X_quest, Y_total = prepare_holy_cca(scores, behavioral_data)
-    # p_value, X_loadings, Y_loadings, X_scores, Y_scores = perm_test_canonical_correlation(X_quest, Y_total)
+    # Example of filtering out inattentive responders
+    scores_filtered = calculate_raw_sd_across_measures_no_groupby(df_raw, scores)
     
-    # Visualize results
-    # visualize_cca(scores, behavioral_data, name="example_cca")
+    
+    # Calculate and visualize correlations between variables
+    # plot_correlations(questionnaire_scores, behavioral_measures, significant=True)
     
     print("Script completed successfully.")
